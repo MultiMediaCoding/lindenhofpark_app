@@ -6,7 +6,8 @@ import 'package:lindenhofpark/MapView/map_object_category.dart';
 final List<MapObject> mapObjects = [
   MapObject(
       "SuperBaum",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
       MapManager().lindenhofparkPosition,
       "imagePath")
 ];

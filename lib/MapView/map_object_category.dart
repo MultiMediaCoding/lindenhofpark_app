@@ -9,7 +9,7 @@ class MapObjectCategory {
   MapObjectCategory(this.iconData, this.pinColor, this.category);
 }
 
-enum MapObjectCategoryType { tree, sighn, bench, historicalPlace }
+enum MapObjectCategoryType { tree, sign, bench, historicalPlace }
 
 extension MyObjectListExtension on List<MapObjectCategory> {
   MapObjectCategory getObjectByCategory(MapObjectCategoryType category) {
