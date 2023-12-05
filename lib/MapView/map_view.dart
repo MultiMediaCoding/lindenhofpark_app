@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:lindenhofpark/MapView/map_manager.dart';
 import 'package:lindenhofpark/MapView/map_object.dart';
 import 'package:lindenhofpark/MapView/map_objects.dart';
@@ -66,7 +67,7 @@ class _MapViewState extends State<MapView> {
               Marker(
                 width: 40,
                 height: 40,
-                point: mapManager.lindenhofparkPosition,
+                point: mapObject.location,
                 child: MapPin(mapObject: mapObject),
               ),
           ],
@@ -83,18 +84,18 @@ class MapPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final icon = SvgPicture.asset(mapObject.category.iconPath,
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn));
     return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: mapObject.category.pinColor,
-          border: Border.all(color: Colors.white, width: 3)),
-      child: Icon(
-        mapObject.category.iconData,
-        size: 20,
-        color: Colors.white,
-      ),
-    );
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: mapObject.category.pinColor,
+            border: Border.all(color: Colors.white, width: 3)),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: icon,
+        ));
   }
 }
