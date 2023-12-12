@@ -1,10 +1,15 @@
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:lindenhofpark/MapView/map_object.dart';
+import 'package:lindenhofpark/MapView/map_objects.dart';
+import 'package:lindenhofpark/MapView/map_view.dart';
 import 'package:lindenhofpark/map_api_key.dart';
 
 class MapManager {
   MapController controller = MapController();
+
+  List<Marker> markers = [];
 
   final String mapUrl =
       "https://tiles-eu.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png?api_key=$stadiaMapsApiKey";
@@ -53,5 +58,18 @@ class MapManager {
     // When we reach here, permissions are granted and we can
     // continue accessing the position of the device.
     return await Geolocator.getCurrentPosition();
+  }
+
+  MapManager() {
+    for (MapObject mapObject in mapObjects) {
+      final marker = Marker(
+        width: 40,
+        height: 40,
+        point: mapObject.location,
+        child: MapPin(mapObject: mapObject),
+      );
+
+      markers.add(marker);
+    }
   }
 }

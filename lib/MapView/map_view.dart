@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
+import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:lindenhofpark/MapView/map_manager.dart';
 import 'package:lindenhofpark/MapView/map_object.dart';
@@ -61,17 +62,26 @@ class _MapViewState extends State<MapView> {
             ),
           ],
         ),
-        MarkerLayer(
-          markers: [
-            for (MapObject mapObject in mapObjects)
-              Marker(
-                width: 40,
-                height: 40,
-                point: mapObject.location,
-                child: MapPin(mapObject: mapObject),
-              ),
-          ],
-        ),
+        MarkerClusterLayerWidget(
+          options: MarkerClusterLayerOptions(
+            maxClusterRadius: 40,
+            size: const Size(40, 40),
+            markers: mapManager.markers,
+            builder: (context, markers) {
+              return Container(
+                decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    color: Colors.blue),
+                child: Center(
+                  child: Text(
+                    markers.length.toString(),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
+              );
+            },
+          ),
+        )
       ],
     );
   }
