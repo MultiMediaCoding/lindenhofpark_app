@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/MapView/map_object_categories.dart';
+import 'package:lindenhofpark/Map/model/map_object_categories.dart';
 
 class MapObjectCategory {
   final String iconName;

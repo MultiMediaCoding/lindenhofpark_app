@@ -1,5 +1,5 @@
 import 'package:flutter/cupertino.dart';
-import 'package:lindenhofpark/MapView/map_object_category.dart';
+import 'package:lindenhofpark/Map/model/map_object_category.dart';
 
 final List<MapObjectCategory> mapObjectCategories = [
   MapObjectCategory(

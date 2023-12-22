@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/MapView/map_view.dart';
-import 'package:lindenhofpark/details_view.dart';
+import 'package:lindenhofpark/Map/view/map_view.dart';
 
 void main() {
   runApp(const MyApp());

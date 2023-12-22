@@ -1,6 +1,6 @@
 import 'package:url_launcher/url_launcher.dart';
 
-class UrlManager {
+class UrlViewModel {
   Future launchOpenStreetMapCopyrightSite() async {
     await launchUrlString('https://openstreetmap.org/copyright');
   }

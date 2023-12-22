@@ -1,12 +1,12 @@
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:lindenhofpark/MapView/map_object.dart';
-import 'package:lindenhofpark/MapView/map_objects.dart';
-import 'package:lindenhofpark/MapView/map_view.dart';
-import 'package:lindenhofpark/map_api_key.dart';
+import 'package:lindenhofpark/Map/model/map_object.dart';
+import 'package:lindenhofpark/Map/model/map_objects.dart';
+import 'package:lindenhofpark/Map/view/map_view.dart';
+import 'package:lindenhofpark/Map/service/map_api_key.dart';
 
-class MapManager {
+class MapViewModel {
   MapController controller = MapController();
 
   List<Marker> markers = [];
@@ -60,7 +60,7 @@ class MapManager {
     return await Geolocator.getCurrentPosition();
   }
 
-  MapManager() {
+  MapViewModel() {
     for (MapObject mapObject in mapObjects) {
       final marker = Marker(
         width: 40,
