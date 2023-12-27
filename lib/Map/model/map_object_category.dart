@@ -6,11 +6,24 @@ class MapObjectCategory {
   String iconPath = "";
   final Color pinColor;
   final MapObjectCategoryType category;
+  String categoryName = "";
 
   MapObjectCategory(this.iconName, this.pinColor, this.category) {
     iconPath = "assets/images/map_category_icons/$iconName.svg";
+    categoryName = mapObjectCategoryNames[category] ?? "";
   }
 }
+
+final mapObjectCategoryNames = {
+  MapObjectCategoryType.tree: "Baum",
+  MapObjectCategoryType.historicalPlace: "Historischer Ort",
+  MapObjectCategoryType.culturalPlace: "Kultureller Ort",
+  MapObjectCategoryType.bench: "Bank",
+  MapObjectCategoryType.toilet: "Toilette",
+  MapObjectCategoryType.food: "Essen",
+  MapObjectCategoryType.infoSign: "Infotafel",
+  MapObjectCategoryType.seasideResort: "Schwimmstelle",
+};
 
 enum MapObjectCategoryType {
   tree,

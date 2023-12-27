@@ -13,92 +13,96 @@ class TreeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
       children: [
-        SizedBox(
-          height: 270,
-          child: Stack(children: [
-            // Image with gradient
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             SizedBox(
-                width: double.infinity,
-                height: 250,
-                child: Stack(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 250,
-                      child: ClipRect(
-                        child: Image.asset(
-                          "assets/images/trees/sample_tree.jpeg",
-                          fit: BoxFit.fitWidth,
-                        ),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        width: double.infinity,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            end: const Alignment(0.0, -1),
-                            begin: const Alignment(0.0, 0.4),
-                            colors: <Color>[
-                              const Color(0x8A000000),
-                              Colors.black12.withOpacity(0.0)
-                            ],
+              height: 270,
+              child: Stack(children: [
+                // Image with gradient
+                SizedBox(
+                    width: double.infinity,
+                    height: 250,
+                    child: Stack(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 250,
+                          child: ClipRect(
+                            child: Image.asset(
+                              "assets/images/trees/sample_tree.jpeg",
+                              fit: BoxFit.fitWidth,
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  ],
-                )),
-            // Map Object Badge
-            Align(
-              alignment: Alignment.bottomLeft,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 20.0),
-                child: MapPin(mapObject: mapObject),
-              ),
-            )
-          ]),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(20),
-          child: Wrap(
-              direction: Axis.vertical,
-              alignment: WrapAlignment.start,
-              spacing: 20,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tree.title,
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    Text(tree.latinName,
-                        style: Theme.of(context).textTheme.titleMedium),
-                  ],
-                ),
-                InfoBox(
-                    icon: CupertinoIcons.calendar,
-                    title: "Alter",
-                    subtitle: "${tree.age} Jahre alt"),
-                InfoBox(
-                    icon: CupertinoIcons.placemark,
-                    title: "Herkunft",
-                    subtitle: tree.origin),
-                InfoBox(
-                    icon: CupertinoIcons.sun_max,
-                    title: "Blüten/Früchte",
-                    subtitle: tree.origin),
-                InfoBox(
-                    icon: CupertinoIcons.leaf_arrow_circlepath,
-                    title: "Blätter",
-                    subtitle: tree.leafTypeName),
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Container(
+                            width: double.infinity,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                end: const Alignment(0.0, -1),
+                                begin: const Alignment(0.0, 0.4),
+                                colors: <Color>[
+                                  const Color(0x8A000000),
+                                  Colors.black12.withOpacity(0.0)
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    )),
+                // Map Object Badge
+                Align(
+                  alignment: Alignment.bottomLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 20.0),
+                    child: MapPin(mapObject: mapObject),
+                  ),
+                )
               ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Wrap(
+                  direction: Axis.vertical,
+                  alignment: WrapAlignment.start,
+                  spacing: 20,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tree.title,
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        Text(tree.latinName,
+                            style: Theme.of(context).textTheme.titleMedium),
+                      ],
+                    ),
+                    InfoBox(
+                        icon: CupertinoIcons.calendar,
+                        title: "Alter",
+                        subtitle: "${tree.age} Jahre alt"),
+                    InfoBox(
+                        icon: CupertinoIcons.placemark,
+                        title: "Herkunft",
+                        subtitle: tree.origin),
+                    InfoBox(
+                        icon: CupertinoIcons.sun_max,
+                        title: "Blüten/Früchte",
+                        subtitle: tree.origin),
+                    InfoBox(
+                        icon: CupertinoIcons.leaf_arrow_circlepath,
+                        title: "Blätter",
+                        subtitle: tree.leafTypeName),
+                  ]),
+            ),
+          ],
         ),
       ],
     );
