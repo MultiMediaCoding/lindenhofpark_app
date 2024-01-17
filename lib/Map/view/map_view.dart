@@ -30,7 +30,9 @@ class _MapViewState extends State<MapView> {
     return FlutterMap(
       mapController: mapViewModel.controller,
       options: MapOptions(
-          initialCenter: mapViewModel.lindenhofparkPosition, initialZoom: 17),
+          maxZoom: 17,
+          initialCenter: mapViewModel.lindenhofparkPosition,
+          initialZoom: 17),
       children: [
         TileLayer(
           urlTemplate: mapViewModel.mapUrl,

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:lindenhofpark/ColorTheme/color_schemes.g.dart';
 import 'package:lindenhofpark/Map/view/map_view.dart';
 import 'package:lindenhofpark/PlacesList/view/places_list_view.dart';
 
@@ -13,14 +14,22 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lindenhofpark Führer',
+      title: 'Flutter Demo',
       theme: ThemeData(
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         hoverColor: Colors.transparent,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: lightColorScheme,
         useMaterial3: true,
       ),
+      darkTheme: ThemeData(
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        colorScheme: darkColorScheme,
+        useMaterial3: true,
+      ),
+      themeMode: ThemeMode.system,
       home: const MyHomePage(title: 'Lindenhofpark Führer'),
     );
   }
@@ -40,9 +49,6 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<Widget> _pages = <Widget>[
     MapView(),
     PlacesListView(),
-    Center(
-      child: Icon(Icons.message),
-    ),
   ];
   void _onItemTapped(int index) {
     setState(() {
@@ -66,13 +72,9 @@ class _MyHomePageState extends State<MyHomePage> {
             icon: Icon(CupertinoIcons.list_bullet),
             label: '',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message),
-            label: '',
-          ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.amber[800],
+        selectedItemColor: const Color(0xFF6D8B74),
         onTap: _onItemTapped,
       ),
     );
