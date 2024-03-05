@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
-import 'package:lindenhofpark/Map/model/map_objects.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/filter_box.dart';
 import 'package:lindenhofpark/PlacesList/view/places_list_item.dart';
 import 'package:lindenhofpark/PlacesList/view_model/places_list_view_model.dart';

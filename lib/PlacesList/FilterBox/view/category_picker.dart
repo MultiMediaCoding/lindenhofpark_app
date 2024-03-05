@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/model/map_objects_dropdown_labels.dart';
+import 'package:lindenhofpark/PlacesList/view_model/places_list_view_model.dart';
+import 'package:provider/provider.dart';
 
 final TextEditingController iconController = TextEditingController();
-MapObjectDropdownCategoryLabel? selectedIcon;
 
 class CategoryPicker extends StatefulWidget {
   const CategoryPicker({super.key});
@@ -26,17 +27,19 @@ class _CategoryPickerState extends State<CategoryPicker> {
         filled: false,
         contentPadding: EdgeInsets.symmetric(vertical: 5.0),
       ),
-      onSelected: (MapObjectDropdownCategoryLabel? icon) {
-        setState(() {
-          selectedIcon = icon;
-        });
+      onSelected: (MapObjectDropdownCategoryLabel? categoryLabel) {
+        if (categoryLabel != null) {
+          // Change Category
+          Provider.of<PlacesListViewModel>(context, listen: false)
+              .setCategory(categoryLabel);
+        }
       },
       dropdownMenuEntries: MapObjectDropdownCategoryLabel.values
           .map<DropdownMenuEntry<MapObjectDropdownCategoryLabel>>(
         (MapObjectDropdownCategoryLabel icon) {
           return DropdownMenuEntry<MapObjectDropdownCategoryLabel>(
             value: icon,
-            label: icon.label,
+            label: icon.title,
             leadingIcon: SizedBox(
               width: 20,
               height: 20,

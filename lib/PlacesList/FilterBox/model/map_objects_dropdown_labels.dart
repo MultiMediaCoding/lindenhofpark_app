@@ -12,8 +12,8 @@ enum MapObjectDropdownCategoryLabel {
   info("Infotafeln", "info"),
   swimmingResort("Badeplatz", "figure.open.water.swim");
 
-  const MapObjectDropdownCategoryLabel(this.label, this.iconName);
+  const MapObjectDropdownCategoryLabel(this.title, this.iconName);
 
-  final String label;
+  final String title;
   final String iconName;
 }

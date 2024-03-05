@@ -23,7 +23,7 @@ class FilterBox extends StatelessWidget {
                 child: TextField(
                   onChanged: (searchText) =>
                       Provider.of<PlacesListViewModel>(context, listen: false)
-                          .filterMapObjects(searchText),
+                          .findMapObjects(searchText),
                   decoration: const InputDecoration(
                       icon: Icon(CupertinoIcons.search),
                       hintText: "Objekt suchen..."),

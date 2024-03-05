@@ -14,6 +14,7 @@ class MapObjectCategory {
   }
 }
 
+// TODO: Add all category
 final mapObjectCategoryNames = {
   MapObjectCategoryType.tree: "Baum",
   MapObjectCategoryType.historicalPlace: "Historischer Ort",
