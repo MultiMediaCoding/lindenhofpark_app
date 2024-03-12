@@ -14,8 +14,8 @@ class MapObjectCategory {
   }
 }
 
-// TODO: Add all category
 final mapObjectCategoryNames = {
+  MapObjectCategoryType.all: "Alle",
   MapObjectCategoryType.tree: "Baum",
   MapObjectCategoryType.historicalPlace: "Historischer Ort",
   MapObjectCategoryType.culturalPlace: "Kultureller Ort",
@@ -27,6 +27,7 @@ final mapObjectCategoryNames = {
 };
 
 enum MapObjectCategoryType {
+  all,
   tree,
   historicalPlace,
   culturalPlace,

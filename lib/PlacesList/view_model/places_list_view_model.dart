@@ -20,11 +20,16 @@ class PlacesListViewModel with ChangeNotifier {
   }
 
   void setCategory(MapObjectDropdownCategoryLabel categoryLabel) {
-    selectedCategoryName = categoryLabel.title;
-    filteredMapObjects = mapObjects
-        .where((mapObject) =>
-            mapObject.category.categoryName == categoryLabel.title)
-        .toList();
+    if (categoryLabel.title == "Alle") {
+      filteredMapObjects = mapObjects;
+      selectedCategoryName = null;
+    } else {
+      selectedCategoryName = categoryLabel.title;
+      filteredMapObjects = mapObjects
+          .where((mapObject) =>
+              mapObject.category.categoryName == categoryLabel.title)
+          .toList();
+    }
     notifyListeners();
   }
 }

@@ -1,5 +1,6 @@
 // DropdownMenuEntry labels and values for the dropdown menu.
 enum MapObjectDropdownCategoryLabel {
+  all('Alle', "all.fill"),
   tree('Baum', "tree.fill"),
   historicalPlace(
     'Historischer Ort',
