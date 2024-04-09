@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/filter_box.dart';
@@ -15,6 +16,12 @@ class PlacesListView extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Liste"),
+          automaticallyImplyLeading: false,
+          actions: [
+            IconButton(
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(CupertinoIcons.xmark))
+          ],
         ),
         body: ListView(
           shrinkWrap: false,

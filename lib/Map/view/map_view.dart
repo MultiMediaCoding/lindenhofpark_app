@@ -7,6 +7,7 @@ import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
 import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
+import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 
@@ -129,10 +130,9 @@ class MapPin extends StatelessWidget {
     final icon = SvgPicture.asset(mapObject.category.iconPath,
         colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn));
     return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => PlaceDetailsView(mapObject: mapObject)),
+      onTap: () => showMaterialModalBottomSheet(
+        context: context,
+        builder: (context) => PlaceDetailsView(mapObject: mapObject),
       ),
       child: Container(
           width: 40,
