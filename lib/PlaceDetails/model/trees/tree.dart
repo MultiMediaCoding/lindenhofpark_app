@@ -1,22 +1,33 @@
 import 'package:lindenhofpark/PlaceDetails/model/trees/leaf_type.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/leave_types.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/trees.dart';
+import 'package:time_machine/time_machine.dart';
 
 class Tree {
   final String title;
   final String imageName;
   String imagePath = "";
   final String latinName;
-  final int age;
+  final int height;
+  final DateTime plantedAt;
+  int age = 0;
   final String origin;
-  final String blossoms;
   final LeafType leafType;
   String leafTypeName = "";
 
-  Tree(this.title, this.imageName, this.latinName, this.age, this.origin,
-      this.blossoms, this.leafType) {
+  Tree(this.title, this.imageName, this.latinName, this.height, this.plantedAt,
+      this.origin, this.leafType) {
     imagePath = "assets/images/trees/$imageName";
+
+    age = _ageOfTree();
     leafTypeName = leaveTypes[leafType] ?? "";
+  }
+
+  int _ageOfTree() {
+    final now = LocalDate.today();
+    final treePlantedAt = LocalDate.dateTime(plantedAt);
+    final differenceBetweenDates = now.periodSince(treePlantedAt);
+    return differenceBetweenDates.years;
   }
 }
 

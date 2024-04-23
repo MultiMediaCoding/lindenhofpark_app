@@ -3,33 +3,50 @@ import 'package:flutter/material.dart';
 class InfoBox extends StatelessWidget {
   const InfoBox(
       {super.key,
-      required this.icon,
-      required this.title,
-      required this.subtitle});
+      required this.description,
+      required this.content,
+      this.subtitle});
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
+  final String description;
+  final String content;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          color: Color.fromARGB(255, 84, 163, 87),
-        ),
-        const SizedBox(width: 15),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium,
+              description,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(color: Colors.grey, fontSize: 12),
             ),
-            Text(
-              subtitle,
-              style: Theme.of(context).textTheme.titleSmall,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  content,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                SizedBox(
+                  width: 5,
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle ?? "",
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
+              ],
             )
           ],
         )
