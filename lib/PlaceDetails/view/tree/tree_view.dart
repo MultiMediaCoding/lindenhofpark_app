@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:lindenhofpark/Common/view/small_space.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view/map_view.dart';
+import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/draggable_sheet.dart';
 import 'package:lindenhofpark/PlaceDetails/view/info_box.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/tree.dart';
@@ -29,6 +30,7 @@ class TreeView extends StatelessWidget {
             fit: BoxFit.cover,
           ),
         ),
+        NavigationBackButton(),
         DraggableSheet(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -70,7 +72,7 @@ class TreeView extends StatelessWidget {
               InfoBox(description: "Herkunft", content: tree.origin),
             ],
           ),
-        )
+        ),
       ],
     );
   }

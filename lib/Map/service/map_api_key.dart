@@ -1,1 +1,1 @@
-const stadiaMapsApiKey = 'fcfe7d54-7069-482a-89fa-958d8198fbcf';
+const mapTilerApiKey = 'eX2HJwtP7gABwjZn2ku7';

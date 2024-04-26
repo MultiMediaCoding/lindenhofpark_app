@@ -129,11 +129,11 @@ class MapPin extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = SvgPicture.asset(mapObject.category.iconPath,
         colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn));
+
     return InkWell(
-      onTap: () => showCupertinoModalBottomSheet(
-        context: context,
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
         builder: (context) => PlaceDetailsView(mapObject: mapObject),
-      ),
+      )),
       child: Container(
           width: 40,
           height: 40,

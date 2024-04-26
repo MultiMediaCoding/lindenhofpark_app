@@ -4,8 +4,8 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 class MapStyler {
   Future<Style> readStyle() => StyleReader(
         uri:
-            'https://tiles.stadiamaps.com/styles/osm_bright.json?api_key=$stadiaMapsApiKey',
+            'https://api.maptiler.com/maps/basic-v2/style.json?key=${mapTilerApiKey}',
         // ignore: undefined_identifier
-        apiKey: stadiaMapsApiKey,
+        apiKey: mapTilerApiKey,
       ).read();
 }

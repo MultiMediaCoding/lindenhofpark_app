@@ -42,9 +42,7 @@ class PlacesListItem extends StatelessWidget {
   }
 
   void openMapObjectInDetailsView(MapObject mapObject, BuildContext context) {
-    showCupertinoModalBottomSheet(
-      context: context,
-      builder: (context) => PlaceDetailsView(mapObject: mapObject),
-    );
+    Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) => PlaceDetailsView(mapObject: mapObject)));
   }
 }

@@ -33,12 +33,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system,
-      home: Scaffold(
-        body: TreeView(
-          mapObject: mapObjects.first,
-          tree: trees[3],
-        ),
-      ),
+      home: HomeView(),
     );
   }
 }
