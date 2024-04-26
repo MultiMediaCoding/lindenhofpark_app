@@ -46,6 +46,7 @@ dependencies:
   vector_map_tiles: ^7.3.1
   modal_bottom_sheet: ^3.0.0
   time_machine: ^0.9.17
+  sheet: ^1.0.0
 
 dev_dependencies:
   flutter_test:
