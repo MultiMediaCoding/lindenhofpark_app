@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
-import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 
 class PlacesListItem extends StatelessWidget {
   const PlacesListItem({super.key, required this.mapObject});

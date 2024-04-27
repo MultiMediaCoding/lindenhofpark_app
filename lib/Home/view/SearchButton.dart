@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Common/view/toolbar_button_label.dart';
 import 'package:lindenhofpark/PlacesList/view/places_list_view.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';

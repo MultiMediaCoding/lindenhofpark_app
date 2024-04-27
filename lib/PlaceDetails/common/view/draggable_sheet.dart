@@ -1,6 +1,4 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:lindenhofpark/Common/view/small_space.dart';
 import 'package:sheet/sheet.dart';
 
@@ -13,19 +11,37 @@ class DraggableSheet extends StatefulWidget {
 }
 
 class _DraggableSheetState extends State<DraggableSheet> {
+  final SheetController controller = SheetController();
+
+  void animateSheet() {
+    controller.relativeAnimateTo(
+      0.9,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final SheetController controller = SheetController();
-
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
     return AnimatedBuilder(
         animation: controller.animation,
         builder: (context, child) {
           return Sheet(
             controller: controller,
-            maxExtent: 600,
-            minExtent: 250,
-            initialExtent: 250,
+            physics: const SnapSheetPhysics(
+              stops: <double>[0.4, 0.9],
+              parent: BouncingSheetPhysics(
+                overflowViewport: true,
+              ),
+            ),
+            initialExtent: 0.4,
             backgroundColor: Colors.transparent,
             child: Container(
                 padding: EdgeInsets.symmetric(horizontal: 20),
@@ -50,17 +66,19 @@ class _DraggableSheetState extends State<DraggableSheet> {
                     widget.child,
                     const SmallSpace(),
                     GestureDetector(
-                        onTap: () {
-                          controller.animateTo(600,
-                              duration: const Duration(milliseconds: 200),
-                              curve: Curves.bounceInOut);
-                        },
-                        child: Text(
-                          "Mehr lesen",
-                          style: Theme.of(context)
-                              .textTheme
-                              .bodySmall
-                              ?.copyWith(color: Colors.grey),
+                        onTap: () => animateSheet(),
+                        child: Container(
+                          alignment: Alignment.center,
+                          color: Colors.transparent,
+                          width: 200,
+                          height: 50,
+                          child: Text(
+                            "Mehr lesen",
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: Colors.grey),
+                          ),
                         ))
                   ],
                 )),

@@ -7,7 +7,6 @@ import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
 import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
-import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 
@@ -102,6 +101,7 @@ class _MapViewState extends State<MapView> {
           maxClusterRadius: 40,
           size: const Size(40, 40),
           markers: viewModel.markers,
+          rotate: true,
           builder: (context, markers) {
             return Container(
               decoration: BoxDecoration(

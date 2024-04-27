@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/ColorTheme/color_schemes.g.dart';
 import 'package:lindenhofpark/Home/view/HomeView.dart';
-import 'package:lindenhofpark/Map/model/map_objects.dart';
-import 'package:lindenhofpark/PlaceDetails/model/trees/trees.dart';
-import 'package:lindenhofpark/PlaceDetails/view/tree/tree_view.dart';
 
 void main() {
   runApp(const MyApp());

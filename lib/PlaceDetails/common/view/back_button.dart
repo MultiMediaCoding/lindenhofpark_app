@@ -8,17 +8,20 @@ class NavigationBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.pop(context),
-      child: Align(
-        alignment: Alignment.topLeft,
-        child: Container(
-          padding: EdgeInsets.only(right: 2.5),
-          margin: EdgeInsets.all(10),
-          height: 40,
-          width: 40,
-          decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Theme.of(context).colorScheme.background.withOpacity(0.8)),
-          child: Icon(CupertinoIcons.chevron_back),
+      child: SafeArea(
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            padding: EdgeInsets.only(right: 2.5),
+            margin: EdgeInsets.all(10),
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color:
+                    Theme.of(context).colorScheme.background.withOpacity(0.8)),
+            child: Icon(CupertinoIcons.chevron_back),
+          ),
         ),
       ),
     );
