@@ -10,9 +10,9 @@ class PlacesListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    return SizedBox(
-      width: screenWidth,
+    final widthWithPadding = MediaQuery.of(context).size.width - 10;
+    return Container(
+      width: widthWithPadding,
       child: ListTile(
         title:
             Text(mapObject.title, style: Theme.of(context).textTheme.bodyLarge),

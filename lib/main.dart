@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/ColorTheme/color_schemes.g.dart';
 import 'package:lindenhofpark/Home/view/HomeView.dart';
+import 'package:lindenhofpark/PlacesList/view/places_list_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -30,7 +31,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system,
-      home: HomeView(),
+      home: PlacesListView(),
     );
   }
 }

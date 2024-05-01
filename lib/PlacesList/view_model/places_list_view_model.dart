@@ -5,11 +5,12 @@ import 'package:lindenhofpark/PlacesList/FilterBox/model/map_objects_dropdown_la
 
 class PlacesListViewModel with ChangeNotifier {
   List<MapObject> filteredMapObjects = mapObjects;
-  String? selectedCategoryName;
+  String selectedCategoryName = "Alle";
 
   // Filter the mapObjects by their title
   // Find words matching the searchText in long texts
   void findMapObjects(String searchText) {
+    selectedCategoryName = "Alle";
     filteredMapObjects = mapObjects
         .where((mapObject) =>
             mapObject.title.toLowerCase().contains(searchText.toLowerCase()))
@@ -20,11 +21,11 @@ class PlacesListViewModel with ChangeNotifier {
   }
 
   void setCategory(MapObjectDropdownCategoryLabel categoryLabel) {
+    selectedCategoryName = categoryLabel.title;
+
     if (categoryLabel.title == "Alle") {
       filteredMapObjects = mapObjects;
-      selectedCategoryName = null;
     } else {
-      selectedCategoryName = categoryLabel.title;
       filteredMapObjects = mapObjects
           .where((mapObject) =>
               mapObject.category.categoryName == categoryLabel.title)

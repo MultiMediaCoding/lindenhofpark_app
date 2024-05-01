@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/model/map_objects_dropdown_labels.dart';
@@ -16,41 +17,68 @@ class CategoryPicker extends StatefulWidget {
 class _CategoryPickerState extends State<CategoryPicker> {
   @override
   Widget build(BuildContext context) {
-    return DropdownMenu<MapObjectDropdownCategoryLabel>(
-      width: 250,
-      controller: iconController,
-      enableFilter: true,
-      requestFocusOnTap: true,
-      leadingIcon: const Icon(Icons.category),
-      label: const Text('Kategorie'),
-      inputDecorationTheme: const InputDecorationTheme(
-        filled: false,
-        contentPadding: EdgeInsets.symmetric(vertical: 5.0),
-      ),
-      onSelected: (MapObjectDropdownCategoryLabel? categoryLabel) {
-        if (categoryLabel != null) {
-          // Change Category
-          Provider.of<PlacesListViewModel>(context, listen: false)
-              .setCategory(categoryLabel);
-        }
-      },
-      dropdownMenuEntries: MapObjectDropdownCategoryLabel.values
-          .map<DropdownMenuEntry<MapObjectDropdownCategoryLabel>>(
-        (MapObjectDropdownCategoryLabel icon) {
-          return DropdownMenuEntry<MapObjectDropdownCategoryLabel>(
-            value: icon,
-            label: icon.title,
-            leadingIcon: SizedBox(
-              width: 20,
-              height: 20,
-              child: SvgPicture.asset(
-                  "assets/images/map_category_icons/${icon.iconName}.svg",
-                  colorFilter: ColorFilter.mode(
-                      Theme.of(context).colorScheme.primary, BlendMode.srcIn)),
-            ),
+    return SizedBox(
+      width: MediaQuery.of(context).size.width,
+      height: 260,
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: false,
+        itemCount: (MapObjectDropdownCategoryLabel.values.length / 2)
+            .ceil(), // Anzahl der Zeilen berechnen
+        itemBuilder: (BuildContext context, int index) {
+          // Erstellen einer Zeile mit maximal zwei Elementen
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              _buildItem(MapObjectDropdownCategoryLabel.values[index * 2]),
+              if (index * 2 + 1 < MapObjectDropdownCategoryLabel.values.length)
+                _buildItem(MapObjectDropdownCategoryLabel.values[index * 2 +
+                    1]), // Füge das zweite Element hinzu, wenn vorhanden
+            ],
           );
         },
-      ).toList(),
+      ),
     );
+  }
+
+  Widget _buildItem(MapObjectDropdownCategoryLabel category) {
+    return Consumer<PlacesListViewModel>(builder: (context, viewModel, child) {
+      final isSelected = viewModel.selectedCategoryName == category.title;
+      final boxColor = isSelected
+          ? Theme.of(context).colorScheme.primaryContainer
+          : Colors.grey.withOpacity(0.2);
+      return GestureDetector(
+        onTap: () => {
+          Provider.of<PlacesListViewModel>(context, listen: false)
+              .setCategory(category)
+        },
+        child: Container(
+          margin: EdgeInsets.all(8.0),
+          padding: EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: boxColor,
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 18,
+                height: 18,
+                child: SvgPicture.asset(
+                    "assets/images/map_category_icons/${category.iconName}.svg",
+                    colorFilter: ColorFilter.mode(
+                        Theme.of(context).colorScheme.primary,
+                        BlendMode.srcIn)),
+              ),
+              const SizedBox(width: 15),
+              Text(
+                category.title,
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 }
