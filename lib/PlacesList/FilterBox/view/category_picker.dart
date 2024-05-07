@@ -14,29 +14,35 @@ class CategoryPicker extends StatefulWidget {
   State<CategoryPicker> createState() => _CategoryPickerState();
 }
 
+final _foregroundColor = Colors.black.withOpacity(0.55);
+
 class _CategoryPickerState extends State<CategoryPicker> {
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: MediaQuery.of(context).size.width,
-      height: 260,
-      child: ListView.builder(
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: false,
-        itemCount: (MapObjectDropdownCategoryLabel.values.length / 2)
-            .ceil(), // Anzahl der Zeilen berechnen
-        itemBuilder: (BuildContext context, int index) {
-          // Erstellen einer Zeile mit maximal zwei Elementen
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              _buildItem(MapObjectDropdownCategoryLabel.values[index * 2]),
-              if (index * 2 + 1 < MapObjectDropdownCategoryLabel.values.length)
-                _buildItem(MapObjectDropdownCategoryLabel.values[index * 2 +
-                    1]), // Füge das zweite Element hinzu, wenn vorhanden
-            ],
-          );
-        },
+    return Padding(
+      padding: const EdgeInsets.only(left: 15.0),
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width,
+        height: 260,
+        child: ListView.builder(
+          physics: const NeverScrollableScrollPhysics(),
+          shrinkWrap: false,
+          itemCount: (MapObjectDropdownCategoryLabel.values.length / 2)
+              .ceil(), // Anzahl der Zeilen berechnen
+          itemBuilder: (BuildContext context, int index) {
+            // Erstellen einer Zeile mit maximal zwei Elementen
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                _buildItem(MapObjectDropdownCategoryLabel.values[index * 2]),
+                if (index * 2 + 1 <
+                    MapObjectDropdownCategoryLabel.values.length)
+                  _buildItem(MapObjectDropdownCategoryLabel.values[index * 2 +
+                      1]), // Füge das zweite Element hinzu, wenn vorhanden
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -44,20 +50,20 @@ class _CategoryPickerState extends State<CategoryPicker> {
   Widget _buildItem(MapObjectDropdownCategoryLabel category) {
     return Consumer<PlacesListViewModel>(builder: (context, viewModel, child) {
       final isSelected = viewModel.selectedCategoryName == category.title;
-      final boxColor = isSelected
-          ? Theme.of(context).colorScheme.primaryContainer
-          : Colors.grey.withOpacity(0.2);
+      final boxColor =
+          isSelected ? _foregroundColor : Colors.white.withOpacity(0.6);
+      final textColor = isSelected ? Colors.white : _foregroundColor;
       return GestureDetector(
         onTap: () => {
           Provider.of<PlacesListViewModel>(context, listen: false)
               .setCategory(category)
         },
         child: Container(
-          margin: EdgeInsets.all(8.0),
-          padding: EdgeInsets.all(8.0),
+          margin: EdgeInsets.all(4.0),
+          padding: EdgeInsets.only(top: 8, right: 12.0, bottom: 8, left: 12.0),
           decoration: BoxDecoration(
             color: boxColor,
-            borderRadius: BorderRadius.circular(8.0),
+            borderRadius: BorderRadius.circular(12.0),
           ),
           child: Row(
             children: [
@@ -66,14 +72,12 @@ class _CategoryPickerState extends State<CategoryPicker> {
                 height: 18,
                 child: SvgPicture.asset(
                     "assets/images/map_category_icons/${category.iconName}.svg",
-                    colorFilter: ColorFilter.mode(
-                        Theme.of(context).colorScheme.primary,
-                        BlendMode.srcIn)),
+                    colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn)),
               ),
-              const SizedBox(width: 15),
+              const SizedBox(width: 12),
               Text(
                 category.title,
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
               ),
             ],
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
 
@@ -24,17 +25,14 @@ class PlacesListItem extends StatelessWidget {
               ?.copyWith(color: Theme.of(context).colorScheme.secondary),
         ),
         leading: SizedBox(
-          width: 50,
-          height: 50,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              mapObject.imagePath,
-              fit: BoxFit.fitWidth,
-            ),
+          width: 20,
+          height: 20,
+          child: ClipRect(
+            child: SvgPicture.asset(mapObject.category.iconPath,
+                colorFilter: ColorFilter.mode(
+                    Theme.of(context).colorScheme.primary, BlendMode.srcIn)),
           ),
         ),
-        trailing: const Icon(CupertinoIcons.chevron_right),
         onTap: () => openMapObjectInDetailsView(mapObject, context),
       ),
     );

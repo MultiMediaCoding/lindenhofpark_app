@@ -10,27 +10,22 @@ import 'package:provider/provider.dart';
 class PlacesListView extends StatelessWidget {
   PlacesListView({super.key});
 
+  final _backgroundColor = Colors.grey.withOpacity(0.3);
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => PlacesListViewModel(),
       child: Scaffold(
-        appBar: AppBar(
-          actions: [
-            IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(CupertinoIcons.xmark))
-          ],
-        ),
+        backgroundColor: _backgroundColor,
         body: Container(
           width: MediaQuery.of(context).size.width,
           child: ListView(
-            padding: EdgeInsets.symmetric(horizontal: 20),
+            padding: EdgeInsets.only(top: 20, left: 20, right: 20),
             shrinkWrap: false,
             children: [
               const SearchField(),
               const SizedBox(
-                height: 20,
+                height: 10,
               ),
               const CategoryPicker(),
               const SizedBox(

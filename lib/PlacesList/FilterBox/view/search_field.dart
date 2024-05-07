@@ -15,8 +15,7 @@ class SearchField extends StatelessWidget {
             alignment: Alignment.center,
             padding: EdgeInsets.symmetric(horizontal: 20.0),
             decoration: BoxDecoration(
-                color: Colors.grey.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(100)),
+                color: Colors.white, borderRadius: BorderRadius.circular(100)),
             height: 50,
             child: TextField(
               onChanged: (searchText) =>
