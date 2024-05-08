@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/model/map_objects_dropdown_labels.dart';

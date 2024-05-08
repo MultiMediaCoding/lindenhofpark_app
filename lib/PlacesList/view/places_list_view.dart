@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/category_picker.dart';
@@ -28,9 +27,6 @@ class PlacesListView extends StatelessWidget {
                 height: 10,
               ),
               const CategoryPicker(),
-              const SizedBox(
-                height: 20,
-              ),
               Expanded(
                 child: Wrap(
                   spacing: 20,
