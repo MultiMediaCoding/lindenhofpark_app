@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:lindenhofpark/Map/service/stadiaMapsApiKey.dart';
 import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
@@ -18,6 +19,8 @@ class MapView extends StatefulWidget {
 }
 
 final UrlViewModel urlViewModel = UrlViewModel();
+const styleUrl =
+    "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
 
 class _MapViewState extends State<MapView> {
   @override
@@ -34,7 +37,18 @@ class _MapViewState extends State<MapView> {
               initialCenter: viewModel.lindenhofparkPosition,
             ),
             children: [
-              _map(),
+              // _map(),
+              TileLayer(
+                urlTemplate: "$styleUrl?api_key={api_key}",
+
+                //urlTemplate:
+                //  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                subdomains: ['a', 'b', 'c'],
+                additionalOptions: {
+                  "api_key": stadiaMapsApiKey,
+                  'style': 'assets/images/map/map_style.json',
+                },
+              ),
               _locationMarker(),
               _contributorsInfo(),
               _markersCluster(),
@@ -54,7 +68,7 @@ class _MapViewState extends State<MapView> {
             theme: viewModel.style!.theme,
             sprites: viewModel.style!.sprites,
             maximumZoom: 22,
-            tileOffset: TileOffset.mapbox,
+            tileOffset: TileOffset.DEFAULT,
             layerMode: VectorTileLayerMode.vector);
 
       return const SizedBox();

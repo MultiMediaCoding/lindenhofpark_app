@@ -1,17 +1,15 @@
 // DropdownMenuEntry labels and values for the dropdown menu.
 enum MapObjectDropdownCategoryLabel {
   all('Alle', "all.fill"),
-  tree('Baum', "tree.fill"),
+  tree('Baum', "tree-solid"),
   historicalPlace(
     'Historischer Ort',
-    "building.columns.fill",
+    "landmark-solid",
   ),
-  culturalPlace('Kultureller Ort', "theatermasks.fill"),
-  bench('Bank', "chair.lounge"),
-  toilet("Toilette", "toilet"),
-  cutlery('Besteck', "fork.knife"),
+
+  cutlery('Essen', "utensils-solid"),
   info("Infotafeln", "info"),
-  swimmingResort("Badeplatz", "figure.open.water.swim");
+  swimmingResort("Badeplatz", "person-swimming-solid");
 
   const MapObjectDropdownCategoryLabel(this.title, this.iconName);
 

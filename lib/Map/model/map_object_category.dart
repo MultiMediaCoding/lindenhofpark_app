@@ -18,10 +18,7 @@ final mapObjectCategoryNames = {
   MapObjectCategoryType.all: "Alle",
   MapObjectCategoryType.tree: "Baum",
   MapObjectCategoryType.historicalPlace: "Historischer Ort",
-  MapObjectCategoryType.culturalPlace: "Kultureller Ort",
-  MapObjectCategoryType.bench: "Bank",
-  MapObjectCategoryType.toilet: "Toilette",
-  MapObjectCategoryType.food: "Essen",
+  MapObjectCategoryType.food: "Restaurant",
   MapObjectCategoryType.infoSign: "Infotafel",
   MapObjectCategoryType.seasideResort: "Schwimmstelle",
 };
@@ -30,9 +27,6 @@ enum MapObjectCategoryType {
   all,
   tree,
   historicalPlace,
-  culturalPlace,
-  bench,
-  toilet,
   food,
   infoSign,
   seasideResort

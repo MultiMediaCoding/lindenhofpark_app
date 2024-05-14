@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/category_picker.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/search_field.dart';
@@ -27,7 +28,8 @@ class PlacesListView extends StatelessWidget {
                 height: 10,
               ),
               const CategoryPicker(),
-              Expanded(
+              SizedBox(
+                width: double.infinity,
                 child: Wrap(
                   spacing: 20,
                   direction: Axis.vertical,
@@ -38,8 +40,9 @@ class PlacesListView extends StatelessWidget {
                         return Column(
                           children: [
                             for (MapObject mapObject
-                                in viewModel.filteredMapObjects)
-                              PlacesListItem(mapObject: mapObject)
+                                in viewModel.filteredMapObjects) ...[
+                              PlacesListItem(mapObject: mapObject),
+                            ]
                           ],
                         );
                       },

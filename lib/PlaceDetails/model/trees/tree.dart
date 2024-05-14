@@ -9,8 +9,8 @@ class Tree {
   String imagePath = "";
   final String latinName;
   final int height;
-  final DateTime plantedAt;
-  int age = 0;
+  final DateTime? plantedAt;
+  int? age = 0;
   final String origin;
   final LeafType leafType;
   String leafTypeName = "";
@@ -23,11 +23,14 @@ class Tree {
     leafTypeName = leaveTypes[leafType] ?? "";
   }
 
-  int _ageOfTree() {
-    final now = LocalDate.today();
-    final treePlantedAt = LocalDate.dateTime(plantedAt);
-    final differenceBetweenDates = now.periodSince(treePlantedAt);
-    return differenceBetweenDates.years;
+  int? _ageOfTree() {
+    if (plantedAt != null) {
+      final now = LocalDate.today();
+      final treePlantedAt = LocalDate.dateTime(plantedAt!);
+      final differenceBetweenDates = now.periodSince(treePlantedAt);
+      return differenceBetweenDates.years;
+    }
+    return null;
   }
 }
 

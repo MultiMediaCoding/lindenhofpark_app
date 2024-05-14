@@ -22,7 +22,7 @@ class _CategoryPickerState extends State<CategoryPicker> {
       padding: const EdgeInsets.only(left: 15.0),
       child: SizedBox(
         width: MediaQuery.of(context).size.width,
-        height: 260,
+        height: 140,
         child: ListView.builder(
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: false,

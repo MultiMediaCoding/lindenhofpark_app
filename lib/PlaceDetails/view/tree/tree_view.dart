@@ -47,11 +47,13 @@ class TreeView extends StatelessWidget {
                 width: MediaQuery.of(context).size.width,
                 child: Row(
                   children: [
-                    InfoBox(
-                        description: "Alter",
-                        content: "${tree.age}",
-                        subtitle: "jahre"),
-                    Spacer(),
+                    if (tree.age != null) ...[
+                      InfoBox(
+                          description: "Alter",
+                          content: "${tree.age!}",
+                          subtitle: "jahre"),
+                      Spacer()
+                    ],
                     InfoBox(
                       description: "Höhe",
                       content: tree.height.toString(),

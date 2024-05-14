@@ -5,6 +5,30 @@ import 'package:latlong2/latlong.dart';
 
 final List<MapObject> mapObjects = [
   MapObject(
+      "Badestelle Lindenhof",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55657241058119, 9.658343701465512)),
+  MapObject(
+      "Ruine Degelstein",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.557282916270836, 9.658433804993683)),
+  MapObject(
+      "Grab von Friedrich Gruber",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55642255023783, 9.659265316851029)),
+  MapObject(
+      "Villa Lindenhof",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55788511597358, 9.660986738915682)),
+  MapObject(
+      "Urweltmammutbaum",
+      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
+      const LatLng(47.55746132, 9.66226002)),
+  MapObject(
       "titel1",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),

@@ -38,6 +38,13 @@ class HistoricalPlaceView extends StatelessWidget {
                     .headlineMedium
                     ?.copyWith(fontWeight: FontWeight.bold),
               ),
+              Text(
+                "Historischer Ort",
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
               const SmallSpace(),
               Text(historicalPlace.description)
             ],
