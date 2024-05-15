@@ -32,9 +32,9 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   flutter_compass: cbbd285cea1584c7ac9c4e0c3e1f17cbea55e855
-  geolocator_apple: cc556e6844d508c95df1e87e3ea6fa4e58c50401
-  path_provider_foundation: 3784922295ac71e43754bd15e0653ccfd36a147c
-  url_launcher_ios: bf5ce03e0e2088bad9cc378ea97fa0ed5b49673b
+  geolocator_apple: 6cbaf322953988e009e5ecb481f07efece75c450
+  path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
+  url_launcher_ios: 5334b05cef931de560670eeae103fd3e431ac3fe
 
 PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796
 

@@ -19,7 +19,7 @@ class NavigationBackButton extends StatelessWidget {
             decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color:
-                    Theme.of(context).colorScheme.background.withOpacity(0.8)),
+                    Theme.of(context).colorScheme.background.withOpacity(0.95)),
             child: Icon(CupertinoIcons.chevron_back),
           ),
         ),

@@ -12,7 +12,9 @@ import 'package:vector_map_tiles/vector_map_tiles.dart';
 class MapViewModel extends ChangeNotifier {
   MapController controller = MapController();
 
-  final lindenhofparkPosition = const LatLng(47.557868, 9.661412);
+  final lindenhofparkCenterPosition = const LatLng(47.557868, 9.661412);
+  final lindenhofparkBegin = const LatLng(47.563619, 9.651471);
+  final lindenhofparkEnd = const LatLng(47.552413, 9.676677);
 
   // Map Style
   Style? style;

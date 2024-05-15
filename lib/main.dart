@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/ColorTheme/color_schemes.g.dart';
 import 'package:lindenhofpark/Home/view/HomeView.dart';
 
 void main() {
@@ -18,16 +17,9 @@ class MyApp extends StatelessWidget {
           splashColor: Colors.transparent,
           highlightColor: Colors.transparent,
           hoverColor: Colors.transparent,
-          colorScheme: lightColorScheme,
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
           useMaterial3: true),
-      darkTheme: ThemeData(
-          fontFamily: 'Inter',
-          splashColor: Colors.transparent,
-          highlightColor: Colors.transparent,
-          hoverColor: Colors.transparent,
-          colorScheme: darkColorScheme,
-          useMaterial3: true),
-      themeMode: ThemeMode.system,
+      themeMode: ThemeMode.light,
       home: HomeView(),
     );
   }

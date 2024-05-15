@@ -3,7 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_svg/svg.dart';
-import 'package:lindenhofpark/Map/service/stadiaMapsApiKey.dart';
+import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
@@ -31,24 +31,16 @@ class _MapViewState extends State<MapView> {
           return FlutterMap(
             mapController: viewModel.controller,
             options: MapOptions(
-              initialZoom: 17,
+              cameraConstraint: CameraConstraint.contain(
+                  bounds: LatLngBounds(viewModel.lindenhofparkBegin,
+                      viewModel.lindenhofparkEnd)),
+              initialZoom: 18,
               maxZoom: 22,
               minZoom: 10,
-              initialCenter: viewModel.lindenhofparkPosition,
+              initialCenter: viewModel.lindenhofparkCenterPosition,
             ),
             children: [
-              // _map(),
-              TileLayer(
-                urlTemplate: "$styleUrl?api_key={api_key}",
-
-                //urlTemplate:
-                //  'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                subdomains: ['a', 'b', 'c'],
-                additionalOptions: {
-                  "api_key": stadiaMapsApiKey,
-                  'style': 'assets/images/map/map_style.json',
-                },
-              ),
+              _map(),
               _locationMarker(),
               _contributorsInfo(),
               _markersCluster(),
@@ -96,14 +88,31 @@ class _MapViewState extends State<MapView> {
   }
 
   Widget _contributorsInfo() {
-    return RichAttributionWidget(
-      attributions: [
-        TextSourceAttribution(
-          'OpenStreetMap contributors',
-          onTap: () async =>
-              await urlViewModel.launchOpenStreetMapCopyrightSite(),
+    return Padding(
+      padding: const EdgeInsets.only(right: 10.0, bottom: 20.0),
+      child: RichAttributionWidget(
+        popupBorderRadius: BorderRadius.circular(10),
+        openButton: (context, open) => IconButton(
+            onPressed: () => open(),
+            icon: VectorIcon(
+              name: "circle-info-solid",
+              size: 20,
+            )),
+        closeButton: (context, close) => IconButton(
+          onPressed: () => close(),
+          icon: VectorIcon(
+            name: "circle-xmark-solid",
+            size: 20,
+          ),
         ),
-      ],
+        attributions: [
+          TextSourceAttribution(
+            'OpenStreetMap contributors',
+            onTap: () async =>
+                await urlViewModel.launchOpenStreetMapCopyrightSite(),
+          ),
+        ],
+      ),
     );
   }
 
@@ -119,11 +128,13 @@ class _MapViewState extends State<MapView> {
           builder: (context, markers) {
             return Container(
               decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20), color: Colors.blue),
+                  borderRadius: BorderRadius.circular(20),
+                  color: Color.fromARGB(255, 58, 127, 60)),
               child: Center(
                 child: Text(
                   markers.length.toString(),
-                  style: const TextStyle(color: Colors.white),
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
             );
@@ -141,8 +152,11 @@ class MapPin extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = SvgPicture.asset(mapObject.category.iconPath,
-        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn));
+    final icon = VectorIcon(
+      name: mapObject.category.iconName,
+      size: 40,
+      color: Colors.white,
+    );
 
     return InkWell(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(

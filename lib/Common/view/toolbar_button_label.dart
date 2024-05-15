@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
 class ToolbarButton extends StatelessWidget {
-  const ToolbarButton(
-      {super.key, required this.iconData, required this.onPressed});
+  const ToolbarButton({super.key, required this.icon, required this.onPressed});
 
-  final IconData iconData;
+  final Widget icon;
   final Function onPressed;
 
   @override
@@ -21,7 +20,7 @@ class ToolbarButton extends StatelessWidget {
               shape: BoxShape.circle,
               color: Theme.of(context).colorScheme.background,
             ),
-            child: IconButton(onPressed: onPressed(), icon: Icon(iconData)),
+            child: IconButton(onPressed: onPressed(), icon: icon),
           ),
         ),
       ),

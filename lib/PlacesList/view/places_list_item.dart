@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
 
@@ -10,8 +11,9 @@ class PlacesListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: MediaQuery.of(context).size.width,
+    return Container(
+      margin: EdgeInsets.only(bottom: 2),
+      height: 60,
       child: ListTile(
         title:
             Text(mapObject.title, style: Theme.of(context).textTheme.bodyLarge),
@@ -22,15 +24,10 @@ class PlacesListItem extends StatelessWidget {
               .bodySmall
               ?.copyWith(color: Theme.of(context).colorScheme.secondary),
         ),
-        leading: SizedBox(
-          width: 20,
-          height: 20,
-          child: ClipRect(
-            child: SvgPicture.asset(mapObject.category.iconPath,
-                colorFilter: ColorFilter.mode(
-                    Theme.of(context).colorScheme.primary, BlendMode.srcIn)),
-          ),
-        ),
+        leading: VectorIcon(
+            name: mapObject.category.iconName,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary),
         onTap: () => openMapObjectInDetailsView(mapObject, context),
       ),
     );

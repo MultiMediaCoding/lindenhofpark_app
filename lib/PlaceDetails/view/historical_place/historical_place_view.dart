@@ -4,7 +4,6 @@ import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/draggable_sheet.dart';
 import 'package:lindenhofpark/PlaceDetails/model/historical_places/historical_place.dart';
-import 'package:lindenhofpark/PlaceDetails/view/info_box.dart';
 
 class HistoricalPlaceView extends StatelessWidget {
   const HistoricalPlaceView(

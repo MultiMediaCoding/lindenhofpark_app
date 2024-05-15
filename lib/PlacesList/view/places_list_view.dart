@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/category_picker.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/search_field.dart';
@@ -37,13 +36,20 @@ class PlacesListView extends StatelessWidget {
                   children: [
                     Consumer<PlacesListViewModel>(
                       builder: (context, viewModel, child) {
-                        return Column(
-                          children: [
-                            for (MapObject mapObject
-                                in viewModel.filteredMapObjects) ...[
-                              PlacesListItem(mapObject: mapObject),
-                            ]
-                          ],
+                        return SizedBox(
+                          width: MediaQuery.of(context).size.width,
+                          child: Column(
+                            children: [
+                              for (MapObject mapObject
+                                  in viewModel.filteredMapObjects) ...[
+                                PlacesListItem(mapObject: mapObject),
+                                Divider(
+                                  thickness: 0.3,
+                                  color: Colors.grey,
+                                )
+                              ]
+                            ],
+                          ),
                         );
                       },
                     ),

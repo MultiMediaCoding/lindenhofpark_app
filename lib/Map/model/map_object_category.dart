@@ -3,13 +3,11 @@ import 'package:lindenhofpark/Map/model/map_object_categories.dart';
 
 class MapObjectCategory {
   final String iconName;
-  String iconPath = "";
   final Color pinColor;
   final MapObjectCategoryType category;
   String categoryName = "";
 
   MapObjectCategory(this.iconName, this.pinColor, this.category) {
-    iconPath = "assets/images/map_category_icons/$iconName.svg";
     categoryName = mapObjectCategoryNames[category] ?? "";
   }
 }

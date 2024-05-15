@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/model/map_objects_dropdown_labels.dart';
 import 'package:lindenhofpark/PlacesList/view_model/places_list_view_model.dart';
 import 'package:provider/provider.dart';
@@ -22,7 +23,7 @@ class _CategoryPickerState extends State<CategoryPicker> {
       padding: const EdgeInsets.only(left: 15.0),
       child: SizedBox(
         width: MediaQuery.of(context).size.width,
-        height: 140,
+        height: 150,
         child: ListView.builder(
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: false,
@@ -57,7 +58,8 @@ class _CategoryPickerState extends State<CategoryPicker> {
           Provider.of<PlacesListViewModel>(context, listen: false)
               .setCategory(category)
         },
-        child: Container(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           margin: EdgeInsets.all(4.0),
           padding: EdgeInsets.only(top: 8, right: 12.0, bottom: 8, left: 12.0),
           decoration: BoxDecoration(
@@ -66,12 +68,10 @@ class _CategoryPickerState extends State<CategoryPicker> {
           ),
           child: Row(
             children: [
-              Container(
-                width: 18,
-                height: 18,
-                child: SvgPicture.asset(
-                    "assets/images/map_category_icons/${category.iconName}.svg",
-                    colorFilter: ColorFilter.mode(textColor, BlendMode.srcIn)),
+              VectorIcon(
+                name: category.iconName,
+                size: 18,
+                color: textColor,
               ),
               const SizedBox(width: 12),
               Text(
