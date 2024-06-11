@@ -69,7 +69,7 @@ class _CategoryPickerState extends State<CategoryPicker> {
           child: Row(
             children: [
               VectorIcon(
-                name: category.iconName,
+                icon: category.iconName,
                 size: 18,
                 color: textColor,
               ),

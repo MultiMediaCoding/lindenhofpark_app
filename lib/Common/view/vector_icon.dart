@@ -3,9 +3,9 @@ import 'package:flutter_svg/svg.dart';
 
 class VectorIcon extends StatelessWidget {
   const VectorIcon(
-      {super.key, required this.name, required this.size, this.color});
+      {super.key, required this.icon, required this.size, this.color});
 
-  final String name;
+  final String icon;
   final double size;
   final Color? color;
 
@@ -15,6 +15,6 @@ class VectorIcon extends StatelessWidget {
         width: size,
         height: size,
         colorFilter: ColorFilter.mode(color ?? Colors.black, BlendMode.srcIn),
-        "assets/images/icons/$name.svg");
+        icon);
   }
 }

@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Map/model/map_object_categories.dart';
 
 class MapObjectCategory {
-  final String iconName;
+  final String icon;
   final Color pinColor;
   final MapObjectCategoryType category;
   String categoryName = "";
 
-  MapObjectCategory(this.iconName, this.pinColor, this.category) {
+  MapObjectCategory(this.icon, this.pinColor, this.category) {
     categoryName = mapObjectCategoryNames[category] ?? "";
   }
 }

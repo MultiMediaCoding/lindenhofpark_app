@@ -8,6 +8,7 @@ import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
 import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
+import 'package:lindenhofpark/resources/resources.dart';
 import 'package:provider/provider.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 
@@ -95,13 +96,13 @@ class _MapViewState extends State<MapView> {
         openButton: (context, open) => IconButton(
             onPressed: () => open(),
             icon: VectorIcon(
-              name: "circle-info-solid",
+              icon: FontAwesomeIcon.circleInfoSolid,
               size: 20,
             )),
         closeButton: (context, close) => IconButton(
           onPressed: () => close(),
           icon: VectorIcon(
-            name: "circle-xmark-solid",
+            icon: FontAwesomeIcon.circleXmarkSolid,
             size: 20,
           ),
         ),
@@ -153,7 +154,7 @@ class MapPin extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = VectorIcon(
-      name: mapObject.category.iconName,
+      icon: mapObject.category.icon,
       size: 40,
       color: Colors.white,
     );

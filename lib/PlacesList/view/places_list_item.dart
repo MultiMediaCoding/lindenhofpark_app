@@ -25,7 +25,7 @@ class PlacesListItem extends StatelessWidget {
               ?.copyWith(color: Theme.of(context).colorScheme.secondary),
         ),
         leading: VectorIcon(
-            name: mapObject.category.iconName,
+            icon: mapObject.category.icon,
             size: 20,
             color: Theme.of(context).colorScheme.primary),
         onTap: () => openMapObjectInDetailsView(mapObject, context),

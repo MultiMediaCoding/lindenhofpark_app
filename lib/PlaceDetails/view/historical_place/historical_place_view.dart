@@ -45,7 +45,7 @@ class HistoricalPlaceView extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SmallSpace(),
-              Text(historicalPlace.description)
+              Text(historicalPlace.description),
             ],
           ),
         ),

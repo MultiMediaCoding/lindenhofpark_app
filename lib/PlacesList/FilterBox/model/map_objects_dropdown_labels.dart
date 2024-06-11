@@ -1,14 +1,16 @@
 // DropdownMenuEntry labels and values for the dropdown menu.
+import 'package:lindenhofpark/resources/resources.dart';
+
 enum MapObjectDropdownCategoryLabel {
-  all('Alle', "grip-solid"),
-  tree('Baum', "tree-solid"),
+  all('Alle', FontAwesomeIcon.gripSolid),
+  tree('Baum', FontAwesomeIcon.treeSolid),
   historicalPlace(
     'Historischer Ort',
-    "landmark-solid",
+    FontAwesomeIcon.landmarkSolid,
   ),
-  cutlery('Essen', "utensils-solid"),
-  info("Infotafeln", "info-solid"),
-  swimmingResort("Badeplatz", "person-swimming-solid");
+  cutlery('Essen', FontAwesomeIcon.utensilsSolid),
+  info("Infotafeln", FontAwesomeIcon.infoSolid),
+  swimmingResort("Badeplatz", FontAwesomeIcon.personSwimmingSolid);
 
   const MapObjectDropdownCategoryLabel(this.title, this.iconName);
 

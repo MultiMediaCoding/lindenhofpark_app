@@ -14,9 +14,10 @@ class Tree {
   final String origin;
   final LeafType leafType;
   String leafTypeName = "";
+  final String? funFact;
 
   Tree(this.title, this.imageName, this.latinName, this.height, this.plantedAt,
-      this.origin, this.leafType) {
+      this.origin, this.leafType, this.funFact) {
     imagePath = "assets/images/trees/$imageName";
 
     age = _ageOfTree();

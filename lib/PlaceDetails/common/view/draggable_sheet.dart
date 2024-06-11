@@ -30,6 +30,7 @@ class _DraggableSheetState extends State<DraggableSheet> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme colorScheme = Theme.of(context).colorScheme;
+
     return AnimatedBuilder(
         animation: controller.animation,
         builder: (context, child) {
@@ -58,28 +59,9 @@ class _DraggableSheetState extends State<DraggableSheet> {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: Column(
-                          children: [
-                            widget.child,
-                            const SmallSpace(),
-                            GestureDetector(
-                                onTap: () => animateSheet(),
-                                child: Container(
-                                  alignment: Alignment.center,
-                                  color: Colors.transparent,
-                                  width: 200,
-                                  height: 50,
-                                  child: Text(
-                                    "Mehr lesen",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(color: Colors.grey),
-                                  ),
-                                ))
-                          ],
-                        ),
+                        padding: const EdgeInsets.only(
+                            left: 20, right: 20, bottom: 100),
+                        child: widget.child,
                       ),
                     )
                   ],
