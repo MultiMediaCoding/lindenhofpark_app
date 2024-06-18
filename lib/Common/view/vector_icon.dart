@@ -14,6 +14,7 @@ class VectorIcon extends StatelessWidget {
     return SvgPicture.asset(
         width: size,
         height: size,
+        fit: BoxFit.contain,
         colorFilter: ColorFilter.mode(color ?? Colors.black, BlendMode.srcIn),
         icon);
   }

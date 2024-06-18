@@ -13,6 +13,7 @@ void main() {
     expect(File(FontAwesomeIcon.gripSolid).existsSync(), isTrue);
     expect(File(FontAwesomeIcon.infoSolid).existsSync(), isTrue);
     expect(File(FontAwesomeIcon.landmarkSolid).existsSync(), isTrue);
+    expect(File(FontAwesomeIcon.link).existsSync(), isTrue);
     expect(File(FontAwesomeIcon.magnifyingGlassSolid).existsSync(), isTrue);
     expect(File(FontAwesomeIcon.personSwimmingSolid).existsSync(), isTrue);
     expect(File(FontAwesomeIcon.restroomSolid).existsSync(), isTrue);

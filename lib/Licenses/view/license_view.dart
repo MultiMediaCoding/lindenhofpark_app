@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/Licenses/model/License.dart';
+import 'package:lindenhofpark/Licenses/view/link_button.dart';
 import 'package:lindenhofpark/Licenses/view/box_container.dart';
 import 'package:lindenhofpark/Licenses/view/navigation_title.dart';
 import 'package:lindenhofpark/Licenses/view/subheadline.dart';
@@ -23,8 +24,14 @@ class LicenseView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              NavigationBackButton(
-                color: Color.fromRGBO(59, 105, 57, 1),
+              Row(
+                children: [
+                  NavigationBackButton(
+                    color: Color.fromRGBO(59, 105, 57, 1),
+                  ),
+                  Spacer(),
+                  LinkButton(url: license.source)
+                ],
               ),
               SizedBox(height: 10),
               NavigationTitle(title: license.name),

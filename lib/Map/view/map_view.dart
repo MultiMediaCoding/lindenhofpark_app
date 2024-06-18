@@ -4,6 +4,8 @@ import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:lindenhofpark/Common/view/vector_icon.dart';
+import 'package:lindenhofpark/Licenses/view/license_view.dart';
+import 'package:lindenhofpark/Licenses/view/licenses_view.dart';
 import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
@@ -112,6 +114,12 @@ class _MapViewState extends State<MapView> {
             onTap: () async =>
                 await urlViewModel.launchOpenStreetMapCopyrightSite(),
           ),
+          TextSourceAttribution('Lizenzen',
+              onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => LicensesView(),
+                    ),
+                  )),
         ],
       ),
     );

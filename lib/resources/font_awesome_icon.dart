@@ -16,6 +16,7 @@ class FontAwesomeIcon {
   static const String infoSolid = 'assets/font_awesome_icons/info-solid.svg';
   static const String landmarkSolid =
       'assets/font_awesome_icons/landmark-solid.svg';
+  static const String link = 'assets/font_awesome_icons/link.svg';
   static const String magnifyingGlassSolid =
       'assets/font_awesome_icons/magnifying-glass-solid.svg';
   static const String personSwimmingSolid =

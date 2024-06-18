@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/PlacesList/view_model/places_list_view_model.dart';
+import 'package:lindenhofpark/resources/resources.dart';
 import 'package:provider/provider.dart';
 
 class SearchField extends StatelessWidget {
@@ -23,7 +25,8 @@ class SearchField extends StatelessWidget {
                       .findMapObjects(searchText),
               decoration: const InputDecoration(
                   border: InputBorder.none,
-                  icon: Icon(CupertinoIcons.search),
+                  icon: VectorIcon(
+                      icon: FontAwesomeIcon.magnifyingGlassSolid, size: 18),
                   hintText: "Suchen"),
             )),
       ],
