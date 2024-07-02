@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lindenhofpark/BiologicalFacts/view/biological_facts_view.dart';
 import 'package:lindenhofpark/Home/view/HomeView.dart';
 import 'package:lindenhofpark/Licenses/view/licenses_view.dart';
 
@@ -21,7 +22,7 @@ class MyApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
           useMaterial3: true),
       themeMode: ThemeMode.light,
-      home: HomeView(),
+      home: BiologicalFactsView(),
     );
   }
 }

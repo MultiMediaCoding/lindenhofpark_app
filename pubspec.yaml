@@ -43,6 +43,7 @@ dependencies:
   modal_bottom_sheet: ^3.0.0
   time_machine: ^0.9.17
   sheet: ^1.0.0
+  carousel_slider: ^4.2.1
 
 dev_dependencies:
   flutter_test:
