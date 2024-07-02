@@ -11,7 +11,7 @@ class NavigationBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(10.0),
+      padding: const EdgeInsets.all(20.0),
       child: GlassmorphicButton(
         onPressed: () => Navigator.of(context).pop(),
         icon: Container(

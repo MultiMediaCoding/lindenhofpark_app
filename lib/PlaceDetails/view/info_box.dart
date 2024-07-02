@@ -23,17 +23,14 @@ class InfoBox extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .titleMedium
-                  ?.copyWith(color: Colors.grey, fontSize: 12),
+                  ?.copyWith(color: Colors.grey, fontSize: 16),
             ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   content,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
                 ),
                 SizedBox(
                   width: 5,
@@ -46,6 +43,7 @@ class InfoBox extends StatelessWidget {
                         .titleSmall
                         ?.copyWith(fontSize: 12, fontWeight: FontWeight.w600),
                   ),
+                  
               ],
             )
           ],

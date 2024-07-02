@@ -11,16 +11,19 @@ class LinkButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassmorphicButton(
-      icon: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: VectorIcon(
-          icon: FontAwesomeIcon.link,
-          color: Color.fromRGBO(59, 105, 57, 1),
-          size: 5,
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: GlassmorphicButton(
+        icon: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: VectorIcon(
+            icon: FontAwesomeIcon.link,
+            color: Color.fromRGBO(59, 105, 57, 1),
+            size: 5,
+          ),
         ),
+        onPressed: () => _launchUrl(),
       ),
-      onPressed: () => _launchUrl(),
     );
   }
 

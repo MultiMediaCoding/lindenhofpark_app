@@ -17,12 +17,11 @@ class LicenseView extends StatelessWidget {
     final _backgroundColor = Color.fromRGBO(221, 223, 216, 1);
     return Scaffold(
       backgroundColor: _backgroundColor,
-      body: SingleChildScrollView(
-        scrollDirection: Axis.vertical,
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
+      body: SafeArea(
+        bottom: false,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.vertical,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
@@ -33,25 +32,34 @@ class LicenseView extends StatelessWidget {
                   LinkButton(url: license.source)
                 ],
               ),
-              SizedBox(height: 10),
-              NavigationTitle(title: license.name),
-              Subheadline(subheadline: license.type),
-              SizedBox(height: 40),
-              Center(
-                child: BoxContainer(
-                  icon: FontAwesomeIcon.boxSolid,
-                  padding: 10,
-                  size: 60,
-                  borderRadius: 15,
-                  color: Color.fromRGBO(59, 105, 57, 1),
+              Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: 10),
+                    NavigationTitle(title: license.name),
+                    Subheadline(subheadline: license.type),
+                    SizedBox(height: 40),
+                    Center(
+                      child: BoxContainer(
+                        icon: FontAwesomeIcon.boxSolid,
+                        padding: 10,
+                        size: 60,
+                        borderRadius: 15,
+                        color: Color.fromRGBO(59, 105, 57, 1),
+                      ),
+                    ),
+                    SizedBox(height: 40),
+                    Text(license.licenseName,
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600)),
+                    Text(
+                      license.licenseText,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    )
+                  ],
                 ),
-              ),
-              SizedBox(height: 40),
-              Text(license.licenseName,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-              Text(
-                license.licenseText,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
               )
             ],
           ),

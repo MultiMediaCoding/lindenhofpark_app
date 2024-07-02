@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lindenhofpark/Common/view/big_space.dart';
 import 'package:lindenhofpark/Common/view/small_space.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
@@ -25,27 +26,25 @@ class HistoricalPlaceView extends StatelessWidget {
             fit: BoxFit.cover,
           ),
         ),
-        NavigationBackButton(),
+        SafeArea(child: NavigationBackButton()),
         DraggableSheet(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 historicalPlace.title,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
               ),
               Text(
                 "Historischer Ort",
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium
-                    ?.copyWith(fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.secondary),
               ),
-              const SmallSpace(),
-              Text(historicalPlace.description),
+              const BigSpace(),
+              Text(historicalPlace.description, style: TextStyle(fontSize: 18)),
+              const SizedBox(height: 150),
             ],
           ),
         ),

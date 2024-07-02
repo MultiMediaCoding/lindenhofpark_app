@@ -22,7 +22,7 @@ class _CarouselWithIndicatorState extends State<IndicatorCarouselSlider> {
   Widget build(BuildContext context) {
     final imageSliders = getImageSliders();
     final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height * 0.8;
+    final height = MediaQuery.of(context).size.height * 0.65;
     return Column(children: [
       CarouselSlider(
         items: imageSliders,

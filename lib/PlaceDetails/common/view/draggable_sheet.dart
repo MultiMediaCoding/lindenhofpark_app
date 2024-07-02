@@ -37,7 +37,7 @@ class _DraggableSheetState extends State<DraggableSheet> {
           return Sheet(
               controller: controller,
               physics: const SnapSheetPhysics(
-                stops: <double>[0.4, 0.9],
+                stops: <double>[0.4, 0.8],
                 parent: BouncingSheetPhysics(
                   overflowViewport: true,
                 ),
