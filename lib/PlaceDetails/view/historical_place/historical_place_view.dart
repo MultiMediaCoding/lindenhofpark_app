@@ -3,7 +3,7 @@ import 'package:lindenhofpark/Common/view/big_space.dart';
 import 'package:lindenhofpark/Common/view/small_space.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
-import 'package:lindenhofpark/PlaceDetails/common/view/draggable_sheet.dart';
+import 'package:lindenhofpark/PlaceDetails/common/view/sheet/draggable_sheet.dart';
 import 'package:lindenhofpark/PlaceDetails/model/historical_places/historical_place.dart';
 
 class HistoricalPlaceView extends StatelessWidget {
@@ -28,6 +28,7 @@ class HistoricalPlaceView extends StatelessWidget {
         ),
         SafeArea(child: NavigationBackButton()),
         DraggableSheet(
+          stops: [0.4, 0.9],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -44,7 +45,7 @@ class HistoricalPlaceView extends StatelessWidget {
               ),
               const BigSpace(),
               Text(historicalPlace.description, style: TextStyle(fontSize: 18)),
-              const SizedBox(height: 150),
+              const SizedBox(height: 200),
             ],
           ),
         ),

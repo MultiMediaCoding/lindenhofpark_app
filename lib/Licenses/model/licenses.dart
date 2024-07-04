@@ -2,7 +2,7 @@ import 'package:lindenhofpark/Licenses/model/License.dart';
 
 final List<License> licenses = [
   License(
-      "flutter map ^6.0.1",
+      "flutter map",
       "Flutter Package",
       "icon",
       "BSD 3-Clause License",
@@ -69,7 +69,7 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.""",
       "https://pub.dev/packages/url_launcher/versions/6.2.1"),
   License(
-      "geolocator ^10.1.0",
+      "geolocator",
       "Flutter Package",
       "icon",
       "MIT License",
@@ -96,7 +96,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""",
       "https://pub.dev/packages/geolocator/versions/10.1.0"),
   License(
-      "latlong2 ^0.9.0",
+      "latlong2",
       "Flutter Package",
       "icon",
       "License text",
@@ -116,7 +116,7 @@ either express or implied. See the License for the specific language
 governing permissions and limitations under the License.""",
       "https://pub.dev/packages/latlong2/versions/0.9.0"),
   License(
-      "flutter_svg ^2.0.9",
+      "flutter svg",
       "Flutter Package",
       "icon",
       "Licence text",
@@ -141,7 +141,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""",
       "https://pub.dev/packages/flutter_svg/versions/2.0.9"),
   License(
-      "provider ^6.1.1",
+      "provider",
       "Flutter Package",
       "icon",
       "MIT License",
@@ -168,7 +168,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""",
       "https://pub.dev/packages/provider/versions/6.1.1"),
   License(
-      "vector map tiles ^7.3.1",
+      "vector map tiles",
       "Flutter Package",
       "icon",
       "BSD 3-Clause License",
@@ -199,7 +199,7 @@ STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.""",
       "https://pub.dev/packages/vector_map_tiles"),
   License(
-      "time machine ^0.9.17",
+      "time machine",
       "Flutter Package",
       "icon",
       "Apache License",
@@ -406,7 +406,7 @@ http://www.apache.org/licenses/
    limitations under the License.""",
       "http://www.apache.org/licenses/LICENSE-2.0"),
   License(
-      "flutter map location marker ^8.0.2",
+      "flutter map location marker",
       "Flutter Package",
       "icon",
       "License text",
@@ -437,7 +437,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.""",
       "https://pub.dev/packages/flutter_map_location_marker/versions/8.0.2"),
   License(
-      "flutter map marker cluster ^1.3.4",
+      "flutter map marker cluster",
       "Flutter Package",
       "icon",
       "License text",
@@ -470,7 +470,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE""",
       "https://pub.dev/packages/flutter_map_marker_cluster/versions/1.3.4"),
   License(
-      "flutter launcher icons ^0.13.1",
+      "flutter launcher icons",
       "Flutter Package",
       "icon",
       "MIT License",
@@ -497,7 +497,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""",
       "https://pub.dev/packages/flutter_launcher_icons/versions/0.13.1"),
   License(
-      "modal bottom sheet ^3.0.0",
+      "modal bottom sheet",
       "Flutter Package",
       "icon",
       "MIT License",
@@ -524,7 +524,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""",
       "https://pub.dev/packages/modal_bottom_sheet/versions/3.0.0"),
   License(
-      "sheet ^1.0.0",
+      "sheet",
       "Flutter Package",
       "icon",
       "MIT License",
@@ -550,6 +550,44 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""",
       "https://pub.dev/packages/sheet"),
-  License("Font Awesome", "Icons", "icon", "CC BY 4.0", "licenseText",
-      "https://fontawesome.com/v4/license/")
+  License(
+      "carousel slider",
+      "Flutter Package",
+      "icon",
+      "MIT License",
+      """
+MIT License
+
+Copyright (c) 2017 serenader
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+""",
+      "https://pub.dev/packages/carousel_slider"),
+  License(
+      "Font Awesome",
+      "Icons",
+      "icon",
+      "CC BY 4.0 License",
+      """
+The Font Awesome Free download is licensed under a Creative Commons
+Attribution 4.0 International License and applies to all icons packaged
+as SVG and JS file types.
+""",
+      "https://creativecommons.org/licenses/by/4.0/")
 ];

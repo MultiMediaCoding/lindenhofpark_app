@@ -4,35 +4,78 @@ import 'package:lindenhofpark/Map/model/map_object_category.dart';
 import 'package:latlong2/latlong.dart';
 
 final List<MapObject> mapObjects = [
+  // NOTE: Historical Places
   MapObject(
       "Badestelle Lindenhof",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
       const LatLng(47.55657241058119, 9.658343701465512)),
   MapObject(
-      "Ruine Degelstein",
+      "Villa Lindenhof",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
-      const LatLng(47.557282916270836, 9.658433804993683)),
-  MapObject(
-      "Grab von Friedrich Gruber",
-      mapObjectCategories
-          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
-      const LatLng(47.55642255023783, 9.659265316851029)),
+      const LatLng(47.55788511597358, 9.660986738915682)),
   MapObject(
       "Villa Lindenhof",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
       const LatLng(47.55788511597358, 9.660986738915682)),
   MapObject(
+      "Schweizerhaus",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55777817046658, 9.662811303771745)),
+  MapObject(
+      "Friedensräume",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.5579659264289, 9.661221768796072)),
+  MapObject(
+      "Ziergarten",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55763352201423, 9.659679051394953)),
+  MapObject(
+      "Ruine Degelstein",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55725215795993, 9.6588190891186)),
+  MapObject(
+      "Grab von Friedrich Gruber",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55649787856096, 9.659373838914766)),
+  MapObject(
+      "Lindenallee",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55686705265851, 9.661183836407744)),
+  MapObject(
+      "Gärtnerhaus",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.558293926343616, 9.65924219808936)),
+  MapObject(
+      "Buchenwäldle",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55795636758571, 9.658321044197328)),
+  MapObject(
+      "Friedenssäule",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55681531949221, 9.661631534605224)),
+  MapObject(
+      "Seeschlössle",
+      mapObjectCategories
+          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
+      const LatLng(47.55728735540322, 9.662609679084067)),
+
+  // NOTE: Trees
+  MapObject(
       "Urweltmammutbaum",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.55746132, 9.66226002)),
-  MapObject(
-      "titel1",
-      mapObjectCategories
-          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
-      const LatLng(47.557530, 9.659670)),
   MapObject(
       "Bergahorn",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.infoSign),

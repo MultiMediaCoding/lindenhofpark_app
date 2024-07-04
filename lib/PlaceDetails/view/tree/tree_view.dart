@@ -3,7 +3,7 @@ import 'package:lindenhofpark/Common/view/big_space.dart';
 import 'package:lindenhofpark/Common/view/small_space.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
-import 'package:lindenhofpark/PlaceDetails/common/view/draggable_sheet.dart';
+import 'package:lindenhofpark/PlaceDetails/common/view/sheet/draggable_sheet.dart';
 import 'package:lindenhofpark/PlaceDetails/view/info_box.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/tree.dart';
 import 'package:lindenhofpark/PlaceDetails/view/tree/biological_details_button.dart';
@@ -29,6 +29,7 @@ class TreeView extends StatelessWidget {
         ),
         SafeArea(child: NavigationBackButton()),
         DraggableSheet(
+          stops: [0.4],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
