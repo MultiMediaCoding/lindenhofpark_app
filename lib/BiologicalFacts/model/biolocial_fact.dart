@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class BiolocialFact {
   final String title;
   final String content;

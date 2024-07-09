@@ -1,7 +1,4 @@
-import 'dart:ffi';
-
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/Common/view/small_space.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/sheet/sheet_handle_delegate.dart';
 import 'package:sheet/sheet.dart';
 
@@ -50,7 +47,7 @@ class _DraggableSheetState extends State<DraggableSheet> {
               backgroundColor: Colors.transparent,
               child: Container(
                 decoration: BoxDecoration(
-                  color: colorScheme.background,
+                  color: colorScheme.surface,
                   borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(20),
                       topRight: Radius.circular(20)),

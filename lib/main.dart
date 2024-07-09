@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/BiologicalFacts/view/biological_facts_view.dart';
 import 'package:lindenhofpark/Home/view/HomeView.dart';
-import 'package:lindenhofpark/Licenses/view/licenses_view.dart';
 
 void main() {
   runApp(const MyApp());

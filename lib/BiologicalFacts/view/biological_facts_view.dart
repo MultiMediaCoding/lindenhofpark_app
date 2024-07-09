@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/BiologicalFacts/model/biological_facts.dart';
-import 'package:lindenhofpark/BiologicalFacts/view/fact_card.dart';
+import 'package:lindenhofpark/BiologicalFacts/model/biolocial_fact.dart';
 import 'package:lindenhofpark/BiologicalFacts/view/indicator_carousel_slider.dart';
-import 'package:lindenhofpark/Common/view/glasmorphic_button.dart';
-import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
-import 'package:lindenhofpark/resources/resources.dart';
 
 class BiologicalFactsView extends StatelessWidget {
-  const BiologicalFactsView({super.key});
+  const BiologicalFactsView({super.key, required this.facts});
+
+  final List<BiolocialFact> facts;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +37,7 @@ class BiologicalFactsView extends StatelessWidget {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
             ),
-            IndicatorCarouselSlider(facts: biologicalFacts),
+            IndicatorCarouselSlider(facts: facts),
           ],
         ),
       ),

@@ -71,7 +71,9 @@ class TreeView extends StatelessWidget {
               const SmallSpace(),
               InfoBox(description: "Herkunft", content: tree.origin),
               const BigSpace(),
-              BiologicalDetailsButton()
+              if (tree.biologicalFacts.isNotEmpty) ...[
+                BiologicalDetailsButton(facts: tree.biologicalFacts)
+              ]
             ],
           ),
         ),

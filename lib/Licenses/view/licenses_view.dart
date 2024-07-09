@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Licenses/model/licenses.dart';
 import 'package:lindenhofpark/Licenses/view/licenses_item.dart';
 import 'package:lindenhofpark/Licenses/view/navigation_title.dart';
-import 'package:lindenhofpark/Licenses/view/subheadline.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
 
 class LicensesView extends StatelessWidget {

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/PlacesList/view_model/places_list_view_model.dart';

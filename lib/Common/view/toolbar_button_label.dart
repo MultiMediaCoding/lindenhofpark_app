@@ -18,7 +18,7 @@ class ToolbarButton extends StatelessWidget {
             height: 50,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Theme.of(context).colorScheme.background,
+              color: Theme.of(context).colorScheme.surface,
             ),
             child: IconButton(onPressed: onPressed(), icon: icon),
           ),

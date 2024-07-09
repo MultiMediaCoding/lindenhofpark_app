@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:lindenhofpark/BiologicalFacts/model/biolocial_fact.dart';
 import 'package:lindenhofpark/BiologicalFacts/view/biological_facts_view.dart';
 import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/resources/resources.dart';
 
 class BiologicalDetailsButton extends StatelessWidget {
-  const BiologicalDetailsButton({super.key});
+  const BiologicalDetailsButton({super.key, required this.facts});
+
+  final List<BiolocialFact> facts;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => BiologicalFactsView(),
+        builder: (context) => BiologicalFactsView(facts: facts),
       )),
       child: Container(
         height: 55,

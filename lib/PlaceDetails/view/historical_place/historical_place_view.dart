@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Common/view/big_space.dart';
-import 'package:lindenhofpark/Common/view/small_space.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
 import 'package:lindenhofpark/PlaceDetails/common/view/sheet/draggable_sheet.dart';

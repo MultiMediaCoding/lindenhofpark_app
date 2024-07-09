@@ -1,3 +1,4 @@
+import 'package:lindenhofpark/BiologicalFacts/model/biolocial_fact.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/leaf_type.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/leave_types.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/trees.dart';
@@ -14,10 +15,10 @@ class Tree {
   final String origin;
   final LeafType leafType;
   String leafTypeName = "";
-  final String? funFact;
+  final List<BiolocialFact> biologicalFacts;
 
   Tree(this.title, this.imageName, this.latinName, this.height, this.plantedAt,
-      this.origin, this.leafType, this.funFact) {
+      this.origin, this.leafType, this.biologicalFacts) {
     imagePath = "assets/images/trees/$imageName";
 
     age = _ageOfTree();
