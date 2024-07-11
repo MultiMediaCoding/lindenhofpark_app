@@ -4,7 +4,7 @@ import 'package:lindenhofpark/BiologicalFacts/model/biolocial_fact.dart';
 class FactCard extends StatelessWidget {
   const FactCard({super.key, required this.fact});
 
-  final BiolocialFact fact;
+  final BiologicalFact fact;
 
   @override
   Widget build(BuildContext context) {
@@ -57,11 +57,11 @@ class FactCard extends StatelessWidget {
     return Row(
       children: [
         Spacer(),
-        image(fact.images[0], imageWidth),
+        if (fact.images.length > 0) image(fact.images[0], imageWidth),
         const SizedBox(
           width: 15,
         ),
-        image(fact.images[1], imageWidth),
+        if (fact.images.length > 1) image(fact.images[1], imageWidth),
         Spacer()
       ],
     );

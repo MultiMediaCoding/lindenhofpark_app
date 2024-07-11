@@ -23,13 +23,13 @@ class TreeView extends StatelessWidget {
           width: double.infinity,
           height: double.infinity,
           child: Image.asset(
-            "assets/images/trees/sample_tree.jpeg",
+            tree.image,
             fit: BoxFit.cover,
           ),
         ),
         SafeArea(child: NavigationBackButton()),
         DraggableSheet(
-          stops: [0.4],
+          stops: [0.45],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

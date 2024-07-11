@@ -6,8 +6,7 @@ import 'package:time_machine/time_machine.dart';
 
 class Tree {
   final String title;
-  final String imageName;
-  String imagePath = "";
+  final String image;
   final String latinName;
   final int height;
   final DateTime? plantedAt;
@@ -15,12 +14,10 @@ class Tree {
   final String origin;
   final LeafType leafType;
   String leafTypeName = "";
-  final List<BiolocialFact> biologicalFacts;
+  final List<BiologicalFact> biologicalFacts;
 
-  Tree(this.title, this.imageName, this.latinName, this.height, this.plantedAt,
+  Tree(this.title, this.image, this.latinName, this.height, this.plantedAt,
       this.origin, this.leafType, this.biologicalFacts) {
-    imagePath = "assets/images/trees/$imageName";
-
     age = _ageOfTree();
     leafTypeName = leaveTypes[leafType] ?? "";
   }
@@ -38,6 +35,7 @@ class Tree {
 
 extension TreeObjectListExtension on List<Tree> {
   Tree getTreeByTitle(String title) {
+    print(title);
     return firstWhere((tree) => tree.title == title, orElse: () => trees.first);
   }
 }

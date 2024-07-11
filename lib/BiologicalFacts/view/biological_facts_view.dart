@@ -6,7 +6,7 @@ import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
 class BiologicalFactsView extends StatelessWidget {
   const BiologicalFactsView({super.key, required this.facts});
 
-  final List<BiolocialFact> facts;
+  final List<BiologicalFact> facts;
 
   @override
   Widget build(BuildContext context) {

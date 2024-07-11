@@ -120,4 +120,8 @@ final List<MapObject> mapObjects = [
       "Urweltmammutbaum+älter",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.557419, 9.662324)),
+  MapObject(
+      "Rotbuche",
+      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
+      const LatLng(47.557861, 9.658639)),
 ];

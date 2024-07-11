@@ -7,7 +7,7 @@ import 'package:lindenhofpark/resources/resources.dart';
 class BiologicalDetailsButton extends StatelessWidget {
   const BiologicalDetailsButton({super.key, required this.facts});
 
-  final List<BiolocialFact> facts;
+  final List<BiologicalFact> facts;
 
   @override
   Widget build(BuildContext context) {

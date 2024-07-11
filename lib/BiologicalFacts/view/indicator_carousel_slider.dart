@@ -4,7 +4,7 @@ import 'package:lindenhofpark/BiologicalFacts/model/biolocial_fact.dart';
 import 'package:lindenhofpark/BiologicalFacts/view/fact_card.dart';
 
 class IndicatorCarouselSlider extends StatefulWidget {
-  final List<BiolocialFact> facts;
+  final List<BiologicalFact> facts;
 
   const IndicatorCarouselSlider({super.key, required this.facts});
 
