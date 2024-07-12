@@ -4,8 +4,8 @@ import 'package:lindenhofpark/PlaceDetails/model/trees/tree.dart';
 import 'package:lindenhofpark/resources/resources.dart';
 
 final List<Tree> trees = [
-  Tree("Rotbuche", TreeImage.ganzerBaumRotbuche, "Fagus sylvatica ", 24, null,
-      "China", LeafType.needle, [
+  Tree("Rotbuche", TreeImage.ganzerBaumRotbuche, "Fagus sylvatica", 28,
+      DateTime(1973, 01, 01), "Mitteleuropa", LeafType.broud, [
     BiologicalFact(
         title: "Borke",
         content:
