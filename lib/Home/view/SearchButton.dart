@@ -17,6 +17,7 @@ class _SearchButtonState extends State<SearchButton> {
   @override
   Widget build(BuildContext context) {
     return ToolbarButton(
+        alignment: Alignment.topLeft,
         icon: VectorIcon(
           icon: FontAwesomeIcon.magnifyingGlassSolid,
           size: 15,

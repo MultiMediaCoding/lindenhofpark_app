@@ -44,6 +44,7 @@ dependencies:
   time_machine: ^0.9.17
   sheet: ^1.0.0
   carousel_slider: ^4.2.1
+  flutter_map_compass: ^1.0.3
 
 dev_dependencies:
   flutter_test:

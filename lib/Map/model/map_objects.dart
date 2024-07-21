@@ -77,10 +77,6 @@ final List<MapObject> mapObjects = [
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.55746132, 9.66226002)),
   MapObject(
-      "Bergahorn",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.infoSign),
-      const LatLng(47.557209, 9.660162)),
-  MapObject(
       "Roteiche",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.food),
       const LatLng(47.557689, 9.660577)),

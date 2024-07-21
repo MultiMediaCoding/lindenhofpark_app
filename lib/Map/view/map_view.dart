@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_compass/flutter_map_compass.dart';
 import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
 import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
 import 'package:lindenhofpark/Common/view/vector_icon.dart';
@@ -45,6 +46,7 @@ class _MapViewState extends State<MapView> {
               _locationMarker(),
               _contributorsInfo(),
               _markersCluster(),
+              _compass()
             ],
           );
         }));
@@ -149,6 +151,13 @@ class _MapViewState extends State<MapView> {
         ),
       );
     });
+  }
+
+  Widget _compass() {
+    return const MapCompass(
+      icon: Icon(Icons.arrow_upward),
+      hideIfRotatedNorth: true,
+    );
   }
 }
 

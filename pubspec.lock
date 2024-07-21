@@ -97,6 +97,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
+  cupertino_icons:
+    dependency: transitive
+    description:
+      name: cupertino_icons
+      sha256: ba631d1c7f7bef6b729a622b7b752645a2d076dba9976925b8f25725a30e1ee6
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.8"
   executor_lib:
     dependency: transitive
     description:
@@ -158,6 +166,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.2.1"
+  flutter_map_compass:
+    dependency: "direct main"
+    description:
+      name: flutter_map_compass
+      sha256: "9e036786b556676dff7d30aa04fdb95ed23eada3e739bafc5b75b2a512c12d0d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.3"
   flutter_map_location_marker:
     dependency: "direct main"
     description:

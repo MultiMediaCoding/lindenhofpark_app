@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 
 class ToolbarButton extends StatelessWidget {
-  const ToolbarButton({super.key, required this.icon, required this.onPressed});
+  const ToolbarButton(
+      {super.key, required this.icon, required this.onPressed, this.alignment});
 
   final Widget icon;
   final Function onPressed;
+  final Alignment? alignment;
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Align(
-        alignment: Alignment.topRight,
+        alignment: alignment ?? Alignment.topRight,
         child: Padding(
           padding: const EdgeInsets.all(10.0),
           child: Container(
