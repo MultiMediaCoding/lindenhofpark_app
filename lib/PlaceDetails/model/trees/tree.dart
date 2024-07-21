@@ -35,7 +35,6 @@ class Tree {
 
 extension TreeObjectListExtension on List<Tree> {
   Tree getTreeByTitle(String title) {
-    print(title);
     return firstWhere((tree) => tree.title == title, orElse: () => trees.first);
   }
 }

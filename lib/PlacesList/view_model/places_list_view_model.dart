@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
+import 'package:lindenhofpark/Map/model/map_object_categories.dart';
+import 'package:lindenhofpark/Map/model/map_object_category.dart';
 import 'package:lindenhofpark/Map/model/map_objects.dart';
+import 'package:lindenhofpark/PlaceDetails/model/historical_places/historical_place.dart';
+import 'package:lindenhofpark/PlaceDetails/model/historical_places/historical_places.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/model/map_objects_dropdown_labels.dart';
 
 class PlacesListViewModel with ChangeNotifier {
@@ -16,7 +20,24 @@ class PlacesListViewModel with ChangeNotifier {
             mapObject.title.toLowerCase().contains(searchText.toLowerCase()))
         .toList();
 
-    // TODO: Find words matching the searchText in long texts
+    // Find words matching the searchText in long texts
+    final historicalPlacesSearchResults = mapObjects
+        .where((mapObject) =>
+            mapObject.category.category ==
+                MapObjectCategoryType.historicalPlace &&
+            historical_places
+                .getHistoricalPlaceByTitle(mapObject.title)
+                .description
+                .toLowerCase()
+                .contains(searchText.toLowerCase()))
+        .toList();
+
+    // Combine findings
+    filteredMapObjects.addAll(historicalPlacesSearchResults);
+
+    // Remove duplicates
+    filteredMapObjects = filteredMapObjects.toSet().toList();
+
     notifyListeners();
   }
 

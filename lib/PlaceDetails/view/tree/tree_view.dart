@@ -29,7 +29,7 @@ class TreeView extends StatelessWidget {
         ),
         SafeArea(child: NavigationBackButton()),
         DraggableSheet(
-          stops: [0.45],
+          stops: [0.4],
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
