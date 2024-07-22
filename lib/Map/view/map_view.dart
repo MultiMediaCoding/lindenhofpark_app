@@ -40,6 +40,16 @@ class _MapViewState extends State<MapView> {
               maxZoom: 22,
               minZoom: 10,
               initialCenter: viewModel.lindenhofparkCenterPosition,
+              interactionOptions: const InteractionOptions(
+                enableMultiFingerGestureRace: true,
+                flags: InteractiveFlag.doubleTapDragZoom |
+                    InteractiveFlag.doubleTapZoom |
+                    InteractiveFlag.drag |
+                    InteractiveFlag.flingAnimation |
+                    InteractiveFlag.pinchZoom |
+                    InteractiveFlag.rotate |
+                    InteractiveFlag.scrollWheelZoom,
+              ),
             ),
             children: [
               _map(),
@@ -154,9 +164,23 @@ class _MapViewState extends State<MapView> {
   }
 
   Widget _compass() {
-    return const MapCompass(
-      icon: Icon(Icons.arrow_upward),
-      hideIfRotatedNorth: true,
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topRight,
+        child: Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Theme.of(context).colorScheme.surface,
+                ),
+                child: const MapCompass(
+                  icon: Icon(Icons.arrow_upward),
+                  hideIfRotatedNorth: false,
+                ))),
+      ),
     );
   }
 }
