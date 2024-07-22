@@ -24,22 +24,22 @@ final List<MapObject> mapObjects = [
       "Schweizerhaus",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
-      const LatLng(47.55777817046658, 9.662811303771745)),
+      const LatLng(47.5576710, 9.6625540)),
   MapObject(
       "Friedensräume",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
       const LatLng(47.5579659264289, 9.661221768796072)),
   MapObject(
-      "Ziergarten",
+      "Nutz- und Ziergartenbereich",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
-      const LatLng(47.55763352201423, 9.659679051394953)),
+      const LatLng(47.5577210, 9.6598350)),
   MapObject(
       "Ruine Degelstein",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
-      const LatLng(47.55725215795993, 9.6588190891186)),
+      const LatLng(47.5572110, 9.6584389)),
   MapObject(
       "Grab von Friedrich Gruber",
       mapObjectCategories
@@ -73,26 +73,6 @@ final List<MapObject> mapObjects = [
 
   // NOTE: Trees
   MapObject(
-      "Urweltmammutbaum",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.55746132, 9.66226002)),
-  MapObject(
-      "Roteiche",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.food),
-      const LatLng(47.557689, 9.660577)),
-  MapObject(
-      "Urweltmammutbaum",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557208, 9.661616)),
-  MapObject(
-      "Weihrauchzeder",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.55731, 9.660326)),
-  MapObject(
-      "Riesenlebensbaum",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557868, 9.662008)),
-  MapObject(
       "Schwarzkiefer",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.557116, 9.658103)),
@@ -101,23 +81,41 @@ final List<MapObject> mapObjects = [
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.558002, 9.657898)),
   MapObject(
-      "Nordmanntanne",
+      "Rotbuche",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557807, 9.662035)),
+      const LatLng(47.557861, 9.658639)),
+  // TODO: Roteiche
+  MapObject(
+      "Weihrauchzeder",
+      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
+      const LatLng(47.55731, 9.660326)),
+  // TODO: Bergahron
+  MapObject(
+      "Winterlinde",
+      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
+      const LatLng(47.55685039, 9.66155328)),
   MapObject(
       "Hängebirke",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.557315, 9.661381)),
   MapObject(
-      "Ahornblättrige Platane",
+      "Urweltmammutbaum",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557707, 9.664709)),
+      const LatLng(47.55746132, 9.66226002)),
+  MapObject(
+      "Nordmanntanne",
+      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
+      const LatLng(47.557807, 9.662035)),
+  MapObject(
+      "Riesenlebensbaum",
+      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
+      const LatLng(47.557868, 9.662008)),
   MapObject(
       "Urweltmammutbaum+älter",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.557419, 9.662324)),
   MapObject(
-      "Rotbuche",
+      "Ahornblättrige Platane",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557861, 9.658639)),
+      const LatLng(47.557707, 9.664709)),
 ];

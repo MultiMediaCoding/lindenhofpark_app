@@ -168,7 +168,7 @@ class _MapViewState extends State<MapView> {
       child: Align(
         alignment: Alignment.topRight,
         child: Padding(
-            padding: const EdgeInsets.all(10.0),
+            padding: const EdgeInsets.all(20.0),
             child: Container(
                 width: 50,
                 height: 50,

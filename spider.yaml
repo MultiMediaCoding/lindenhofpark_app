@@ -35,7 +35,10 @@ groups:
     types: [.svg]
   - path: assets/images/trees
     class_name: TreeImage
-    types: [.jpeg]
+    types: [.jpeg, .jpg]
   - path: assets/images/biological_facts
     class_name: BiologicalFactImage
-    types: [.jpeg]
+    types: [.jpeg, .jpg]
+  - path: assets/images/historical_places
+    class_name: HistoricalPlaceImage
+    types: [.jpeg, .jpg]

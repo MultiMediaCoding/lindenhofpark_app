@@ -51,13 +51,13 @@ final List<Tree> trees = [
             """Wenn sie nach oben gucken, erkennen sie, dass an dem Baum ein Fledermauskasten hängt. Diese bieten den Tieren einen guten Unterschlupf und können auch als Überwinterungsquartier genutzt werden.""",
         images: [
           BiologicalFactImage.fledermauskastenRotbuche,
-          BiologicalFactImage.ganzerBaumRotbuche
+          TreeImage.ganzerBaumRotbuche
         ])
   ]),
   // David
   Tree(
       "Urweltmammutbaum",
-      "urweltmammutbaum.jpeg",
+      TreeImage.ganzerBaumUrweltmamutbaum,
       "Metasequoia glyptostroboides",
       24,
       DateTime(1971, 01, 01),
@@ -128,7 +128,7 @@ final List<Tree> trees = [
         ]),
   ]),
   // Janne
-  Tree("Schwarzkiefer", "schwarzkiefer.jpeg", "Pinus nigra", 18,
+  Tree("Schwarzkiefer", TreeImage.ganzerBaumSchwarzkiefer, "Pinus nigra", 18,
       DateTime(1846, 01, 01), "Europa", LeafType.needle, [
     BiologicalFact(
         title: "Blütezeit",
@@ -179,37 +179,37 @@ final List<Tree> trees = [
         ]),
   ]),
   // Emi
-  Tree("Winterlinde", "sample_tree.jpeg", "Tilia Cordata", 24, null, "Europa",
-      LeafType.broud, [
+  Tree("Winterlinde", TreeImage.ganzerBaumWinterlinde, "Tilia Cordata", 24,
+      null, "Europa", LeafType.broud, [
     BiologicalFact(
         title: "Borke",
         content:
             """Die Winterlinde hat eine dicht gerippte, schwärzlichgraue Borke. Diese kann sich mit dem Alter ändern, meistens werden sie braungrau.""",
         images: [
-          "assets/images/trees/sample_tree.jpeg",
-          "assets/images/trees/sample_tree.jpeg"
+          BiologicalFactImage.borkeWinterlinde,
+          TreeImage.ganzerBaumWinterlinde
         ]),
     BiologicalFact(
         title: "Blattform",
         content:
             """Die Blätter sind Herzförmig mit einem Durchmesser von 5-6 cm und haben eine dunkelgrüne Farbe auf der Oberseite, als auch eine blaugrüne Unterseite.""",
         images: [
-          "assets/images/trees/sample_tree.jpeg",
-          "assets/images/trees/sample_tree.jpeg"
+          BiologicalFactImage.blattWinterlinde,
+          BiologicalFactImage.blaetterWinterlinde
         ]),
     BiologicalFact(
         title: "Blütezeit",
         content:
             """Die Blütezeit der Winterlinde ist von Juni bis Juli, ein Monat später als die Sommerlinde.""",
-        images: []),
+        images: [
+          BiologicalFactImage.blaetterWinterlinde,
+          BiologicalFactImage.bluetenWinterlinde
+        ]),
     BiologicalFact(
         title: "Frucht",
         content:
             """Die Frucht der Winterlinde ist eine kleine, kugeliges Nüsschen, diese ist ca. 5-7 mm groß. Sie reifen im September aber bleiben oft den Winter über am Baum.""",
-        images: [
-          "assets/images/trees/sample_tree.jpeg",
-          "assets/images/trees/sample_tree.jpeg"
-        ]),
+        images: []),
     BiologicalFact(
         title: "Fortpflanzung",
         content:
@@ -223,17 +223,58 @@ final List<Tree> trees = [
         title: "Leben am Baum",
         content: """Neben Insekten leben auch Fledermäuse an diesem Baum.""",
         images: [
-          "assets/images/trees/sample_tree.jpeg",
-          "assets/images/trees/sample_tree.jpeg"
+          TreeImage.ganzerBaumWinterlinde,
+          BiologicalFactImage.vogelhausWinterlinde
         ]),
     BiologicalFact(
         title: "Besonderheiten",
         content:
             """Das Holz der Winterlinde ist sehr weich und leicht, es wird häufig für den Musikinstrumentenbau und Bildhauerei verwendet. Die Winterlinde war auch Baum des Jahres in Deutschland in 2016.""",
+        images: [
+          BiologicalFactImage.borkeWinterlinde,
+          BiologicalFactImage.blaetterWinterlinde
+        ]),
+  ]),
+  // Mika
+  Tree("Weihrauchzeder", TreeImage.ganzerBaumWeihrauchzeder,
+      "Calocedrus decurrens", 24, null, "USA, Kalefornien", LeafType.needle, [
+    BiologicalFact(
+        title: "Borke",
+        content:
+            """Die Borke alter Stämme ist orangefarben und längsrissig. Bei älteren Bäumen ist sie dick und löst sich in Platten ab.""",
+        images: [
+          BiologicalFactImage.borkeAstWeihrauchzeder,
+          TreeImage.ganzerBaumWeihrauchzeder
+        ]),
+    BiologicalFact(
+        title: "Nadelform",
+        content:
+            """Schuppenförmige Blätter, die kreuzgegenständig in vierzähligen Wirteln angeordnet sind. Die Kantenblätter sind herablaufend, gekielt und linealisch-lanzettförmig, während die Flächenblätter etwas kürzer und breit spatelförmig sind. Die Blätter sind etwa 2-15 mm lang und 1,5-3 mm breit.""",
+        images: [
+          BiologicalFactImage.blattWeihrauchzeder,
+          BiologicalFactImage.blattFruchtWeihrauchzeder
+        ]),
+    BiologicalFact(
+        title: "Blütezeit",
+        content:
+            """Die Blütezeit der Weihrauchzeder ist von Januar, bzw. März bis April.""",
+        images: []),
+    BiologicalFact(
+        title: "Frucht",
+        content:
+            """Längliche Zapfen, die aus 6 Schuppen aufgebaut sind. Die Zapfen werden als gelbbraun oder braun beschrieben.""",
+        images: [
+          BiologicalFactImage.blattFruchtWeihrauchzeder,
+          BiologicalFactImage.blattWeihrauchzeder
+        ]),
+    BiologicalFact(
+        title: "Fortpflanzung",
+        content:
+            """Die Weihrauchzeder pflanzt sich durch Samen fort, die in den Zapfen gebildet werden.""",
+        images: []),
+    BiologicalFact(
+        title: "Durchschnittliches Alter",
+        content: """Die Weihrauchzeder kann bis zu 800 Jahr alt werden.""",
         images: []),
   ]),
-  Tree("Bergahorn", "sample_tree.jpeg", "Acer pseudoplatanos", 30,
-      DateTime(1846, 01, 01), "Schneehalde", LeafType.needle, []),
-  Tree("Roteiche", "sample_tree.jpeg", "Quercus rubra", 21,
-      DateTime(1846, 01, 01), "Schneehalde", LeafType.needle, []),
 ];

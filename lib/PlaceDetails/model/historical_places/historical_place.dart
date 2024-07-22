@@ -2,9 +2,10 @@ import 'package:lindenhofpark/PlaceDetails/model/historical_places/historical_pl
 
 class HistoricalPlace {
   final String title;
+  final String image;
   final String description;
 
-  HistoricalPlace(this.title, this.description);
+  HistoricalPlace(this.title, this.image, this.description);
 }
 
 extension HistoricalPlaceObjectListExtension on List<HistoricalPlace> {

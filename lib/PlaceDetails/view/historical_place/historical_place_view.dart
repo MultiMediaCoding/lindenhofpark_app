@@ -21,7 +21,7 @@ class HistoricalPlaceView extends StatelessWidget {
           width: double.infinity,
           height: double.infinity,
           child: Image.asset(
-            "assets/images/trees/sample_tree.jpeg",
+            historicalPlace.image,
             fit: BoxFit.cover,
           ),
         ),
