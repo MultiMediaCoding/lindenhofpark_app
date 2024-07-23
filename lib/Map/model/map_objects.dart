@@ -77,10 +77,6 @@ final List<MapObject> mapObjects = [
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.557116, 9.658103)),
   MapObject(
-      "Schwarznuss",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.558002, 9.657898)),
-  MapObject(
       "Rotbuche",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.557861, 9.658639)),
@@ -95,27 +91,7 @@ final List<MapObject> mapObjects = [
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.55685039, 9.66155328)),
   MapObject(
-      "Hängebirke",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557315, 9.661381)),
-  MapObject(
       "Urweltmammutbaum",
       mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
       const LatLng(47.55746132, 9.66226002)),
-  MapObject(
-      "Nordmanntanne",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557807, 9.662035)),
-  MapObject(
-      "Riesenlebensbaum",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557868, 9.662008)),
-  MapObject(
-      "Urweltmammutbaum+älter",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557419, 9.662324)),
-  MapObject(
-      "Ahornblättrige Platane",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557707, 9.664709)),
 ];
