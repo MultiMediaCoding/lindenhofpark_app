@@ -16,12 +16,7 @@ final List<MapObject> mapObjects = [
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
       const LatLng(47.55788511597358, 9.660986738915682)),
   MapObject(
-      "Villa Lindenhof",
-      mapObjectCategories
-          .getObjectByCategory(MapObjectCategoryType.historicalPlace),
-      const LatLng(47.55788511597358, 9.660986738915682)),
-  MapObject(
-      "Schweizerhaus",
+      "Geschichte des Guts Lindenhof",
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
       const LatLng(47.5576710, 9.6625540)),

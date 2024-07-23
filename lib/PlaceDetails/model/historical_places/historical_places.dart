@@ -126,9 +126,7 @@ Entnommen aus dem Informationsbüchlein “Lindenhofpark” “Ein botanischer S
 
 """),
 
-  HistoricalPlace(
-      "Friedensräume",
-      HistoricalPlaceImage.friedensraeumeLindenhofpark,
+  HistoricalPlace("Friedensräume", HistoricalPlaceImage.friedensraeumeGarten,
       """In der Villa Lindenhof ist auch ein Museum, die Friedensräume.
 
 Es wird eingeladen, sich interaktiv, mit verschieden Friedensthemen, sehend, hörend und fühlend auseinanderzusetzen. Dem Frieden wird hier, durch die interkulturelle und interreligiöse Städte, Raum für Austausch und Begegnung gegeben, damit jeder den Frieden individuell erleben, erfahren und erlernen kann. “Hier geht es nicht um “Frieden in Vitrinen”, sondern um individuelle Impulse.”
