@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 class GlassMorphism extends StatelessWidget {
@@ -9,23 +10,19 @@ class GlassMorphism extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(borderRadius ?? 0);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius ??
-          0), // Stellen Sie sicher, dass dieser Wert gesetzt ist
+      borderRadius: radius,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
-        child: Container(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: DecoratedBox(
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Colors.white.withValues(alpha: 0.2),
-                Colors.white.withValues(alpha: 0.2),
-              ],
-              begin: AlignmentDirectional.topStart,
-              end: AlignmentDirectional.bottomEnd,
+            color: Colors.white.withValues(alpha: 0.2),
+            borderRadius: radius,
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.35),
+              width: 0.5,
             ),
-            borderRadius: BorderRadius.circular(
-                borderRadius ?? 0), // Wird bereits verwendet
           ),
           child: child,
         ),

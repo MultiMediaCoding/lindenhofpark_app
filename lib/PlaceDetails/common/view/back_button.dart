@@ -1,7 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Common/view/glasmorphic_button.dart';
-import 'package:lindenhofpark/Common/view/vector_icon.dart';
-import 'package:lindenhofpark/resources/resources.dart';
 
 class NavigationBackButton extends StatelessWidget {
   const NavigationBackButton({super.key, this.color});
@@ -10,17 +9,17 @@ class NavigationBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: GlassmorphicButton(
+        semanticLabel: 'Zurück',
         onPressed: () => Navigator.of(context).pop(),
-        icon: Container(
-          width: 7,
-          height: 7,
-          margin: EdgeInsets.all(10),
-          child: VectorIcon(
-            icon: FontAwesomeIcon.angleLeftSolid,
+        icon: Padding(
+          // The chevron glyph is optically off-centre; nudge it like SF Symbols.
+          padding: const EdgeInsets.only(right: 2),
+          child: Icon(
+            CupertinoIcons.chevron_left,
             color: color ?? Colors.white,
-            size: 7,
+            size: 22,
           ),
         ),
       ),
