@@ -1,4 +1,4 @@
-import 'package:lindenhofpark/Map/service/stadiaMapsApiKey.dart';
+import 'package:lindenhofpark/Map/service/stadia_maps_api_key.dart';
 import 'package:vector_map_tiles/vector_map_tiles.dart';
 
 class MapStyler {

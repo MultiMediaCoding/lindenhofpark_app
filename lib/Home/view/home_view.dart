@@ -1,4 +1,4 @@
-import 'package:lindenhofpark/Home/view/SearchButton.dart';
+import 'package:lindenhofpark/Home/view/search_button.dart';
 import 'package:lindenhofpark/Map/view/map_view.dart';
 import 'package:flutter/material.dart';
 

@@ -1,4 +1,4 @@
-import 'package:lindenhofpark/Licenses/model/License.dart';
+import 'package:lindenhofpark/Licenses/model/license.dart';
 
 final List<License> licenses = [
   License(

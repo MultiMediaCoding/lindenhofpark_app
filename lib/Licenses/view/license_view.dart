@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/Licenses/model/License.dart';
+import 'package:lindenhofpark/Licenses/model/license.dart';
 import 'package:lindenhofpark/Licenses/view/link_button.dart';
 import 'package:lindenhofpark/Licenses/view/box_container.dart';
 import 'package:lindenhofpark/Licenses/view/navigation_title.dart';

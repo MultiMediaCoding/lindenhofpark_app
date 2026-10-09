@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/Home/view/HomeView.dart';
+import 'package:lindenhofpark/Home/view/home_view.dart';
 
 void main() {
   runApp(const MyApp());
