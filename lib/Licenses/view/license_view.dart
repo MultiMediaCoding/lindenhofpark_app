@@ -13,9 +13,9 @@ class LicenseView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final _backgroundColor = Color.fromRGBO(221, 223, 216, 1);
+    final pageBackground = Color.fromRGBO(221, 223, 216, 1);
     return Scaffold(
-      backgroundColor: _backgroundColor,
+      backgroundColor: pageBackground,
       body: SafeArea(
         bottom: false,
         child: SingleChildScrollView(

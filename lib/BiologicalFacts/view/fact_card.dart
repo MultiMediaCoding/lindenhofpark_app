@@ -15,7 +15,7 @@ class FactCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
             spreadRadius: 5,
             blurRadius: 7,
             offset: const Offset(0, 3),
@@ -57,7 +57,7 @@ class FactCard extends StatelessWidget {
     return Row(
       children: [
         Spacer(),
-        if (fact.images.length > 0) image(fact.images[0], imageWidth),
+        if (fact.images.isNotEmpty) image(fact.images[0], imageWidth),
         const SizedBox(
           width: 15,
         ),

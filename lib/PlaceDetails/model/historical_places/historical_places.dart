@@ -1,7 +1,7 @@
 import 'package:lindenhofpark/PlaceDetails/model/historical_places/historical_place.dart';
 import 'package:lindenhofpark/resources/resources.dart';
 
-final List<HistoricalPlace> historical_places = [
+final List<HistoricalPlace> historicalPlaces = [
   HistoricalPlace(
       "Badestelle Lindenhof",
       HistoricalPlaceImage.badestelleLindenhofpark,

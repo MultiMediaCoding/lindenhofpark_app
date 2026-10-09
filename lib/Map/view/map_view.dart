@@ -67,7 +67,7 @@ class _MapViewState extends State<MapView> {
       if (viewModel.style != null &&
           viewModel.style?.theme != null &&
           viewModel.style?.sprites != null &&
-          viewModel.style?.providers != null)
+          viewModel.style?.providers != null) {
         return VectorTileLayer(
             tileProviders: viewModel.style!.providers,
             theme: viewModel.style!.theme,
@@ -75,6 +75,7 @@ class _MapViewState extends State<MapView> {
             maximumZoom: 22,
             tileOffset: TileOffset.DEFAULT,
             layerMode: VectorTileLayerMode.vector);
+      }
 
       return const SizedBox();
     });

@@ -13,7 +13,7 @@ class CategoryPicker extends StatefulWidget {
   State<CategoryPicker> createState() => _CategoryPickerState();
 }
 
-final _foregroundColor = Colors.black.withOpacity(0.55);
+final _foregroundColor = Colors.black.withValues(alpha: 0.55);
 
 class _CategoryPickerState extends State<CategoryPicker> {
   @override
@@ -50,7 +50,7 @@ class _CategoryPickerState extends State<CategoryPicker> {
     return Consumer<PlacesListViewModel>(builder: (context, viewModel, child) {
       final isSelected = viewModel.selectedCategoryName == category.title;
       final boxColor =
-          isSelected ? _foregroundColor : Colors.white.withOpacity(0.6);
+          isSelected ? _foregroundColor : Colors.white.withValues(alpha: 0.6);
       final textColor = isSelected ? Colors.white : _foregroundColor;
       return GestureDetector(
         onTap: () => {

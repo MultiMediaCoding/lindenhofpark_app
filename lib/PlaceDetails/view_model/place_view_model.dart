@@ -21,7 +21,7 @@ class PlaceViewModel {
       return HistoricalPlaceView(
           mapObject: mapObject,
           historicalPlace:
-              historical_places.getHistoricalPlaceByTitle(mapObject.title));
+              historicalPlaces.getHistoricalPlaceByTitle(mapObject.title));
     }
 
     return Container();

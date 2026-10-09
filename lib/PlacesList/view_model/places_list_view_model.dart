@@ -24,7 +24,7 @@ class PlacesListViewModel with ChangeNotifier {
         .where((mapObject) =>
             mapObject.category.category ==
                 MapObjectCategoryType.historicalPlace &&
-            historical_places
+            historicalPlaces
                 .getHistoricalPlaceByTitle(mapObject.title)
                 .description
                 .toLowerCase()

@@ -9,14 +9,14 @@ import 'package:provider/provider.dart';
 class PlacesListView extends StatelessWidget {
   PlacesListView({super.key});
 
-  final _backgroundColor = Colors.grey.withOpacity(0.3);
+  final _backgroundColor = Colors.grey.withValues(alpha: 0.3);
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => PlacesListViewModel(),
       child: Scaffold(
         backgroundColor: _backgroundColor,
-        body: Container(
+        body: SizedBox(
           width: MediaQuery.of(context).size.width,
           child: ListView(
             padding: EdgeInsets.only(top: 20, left: 20, right: 20),

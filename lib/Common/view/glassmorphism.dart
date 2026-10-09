@@ -18,8 +18,8 @@ class GlassMorphism extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Colors.white.withOpacity(0.2),
-                Colors.white.withOpacity(0.2),
+                Colors.white.withValues(alpha: 0.2),
+                Colors.white.withValues(alpha: 0.2),
               ],
               begin: AlignmentDirectional.topStart,
               end: AlignmentDirectional.bottomEnd,
