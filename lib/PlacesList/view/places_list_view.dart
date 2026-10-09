@@ -1,63 +1,66 @@
 import 'package:flutter/material.dart';
-import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/category_picker.dart';
 import 'package:lindenhofpark/PlacesList/FilterBox/view/search_field.dart';
 import 'package:lindenhofpark/PlacesList/view/places_list_item.dart';
 import 'package:lindenhofpark/PlacesList/view_model/places_list_view_model.dart';
 import 'package:provider/provider.dart';
 
+/// Search and filter list shown in a sheet.
+///
+/// [scrollController] comes from `showCupertinoSheet`, so the list scroll and
+/// the swipe-down-to-dismiss gesture are coordinated by the framework.
 class PlacesListView extends StatelessWidget {
-  PlacesListView({super.key});
+  const PlacesListView({super.key, required this.scrollController});
 
-  final _backgroundColor = Colors.grey.withValues(alpha: 0.3);
+  final ScrollController scrollController;
+
+  static const backgroundColor = Color.fromRGBO(221, 223, 216, 1);
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => PlacesListViewModel(),
       child: Scaffold(
-        backgroundColor: _backgroundColor,
-        body: SizedBox(
-          width: MediaQuery.of(context).size.width,
-          child: ListView(
-            padding: EdgeInsets.only(top: 20, left: 20, right: 20),
-            shrinkWrap: false,
-            children: [
-              const SearchField(),
-              const SizedBox(
-                height: 10,
+        backgroundColor: backgroundColor,
+        body: CustomScrollView(
+          controller: scrollController,
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+              sliver: SliverList.list(
+                children: const [
+                  SearchField(),
+                  SizedBox(height: 12),
+                  CategoryPicker(),
+                  SizedBox(height: 8),
+                ],
               ),
-              const CategoryPicker(),
-              SizedBox(
-                width: double.infinity,
-                child: Wrap(
-                  spacing: 20,
-                  direction: Axis.vertical,
-                  crossAxisAlignment: WrapCrossAlignment.start,
-                  children: [
-                    Consumer<PlacesListViewModel>(
-                      builder: (context, viewModel, child) {
-                        return SizedBox(
-                          width: MediaQuery.of(context).size.width,
-                          child: Column(
-                            children: [
-                              for (MapObject mapObject
-                                  in viewModel.filteredMapObjects) ...[
-                                PlacesListItem(mapObject: mapObject),
-                                Divider(
-                                  thickness: 0.3,
-                                  color: Colors.grey,
-                                )
-                              ]
-                            ],
-                          ),
-                        );
-                      },
+            ),
+            Consumer<PlacesListViewModel>(
+              builder: (context, viewModel, child) {
+                final objects = viewModel.filteredMapObjects;
+                return SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    0,
+                    16,
+                    MediaQuery.paddingOf(context).bottom + 16,
+                  ),
+                  sliver: SliverList.separated(
+                    itemCount: objects.length,
+                    itemBuilder: (context, index) =>
+                        PlacesListItem(mapObject: objects[index]),
+                    separatorBuilder: (context, index) => const Divider(
+                      height: 1,
+                      thickness: 0.5,
+                      color: Colors.grey,
                     ),
-                  ],
-                ),
-              )
-            ],
-          ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );

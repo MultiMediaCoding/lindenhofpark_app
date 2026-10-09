@@ -456,14 +456,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.0"
-  modal_bottom_sheet:
-    dependency: "direct main"
-    description:
-      name: modal_bottom_sheet
-      sha256: eac66ef8cb0461bf069a38c5eb0fa728cee525a531a8304bd3f7b2185407c67e
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.0.0"
   nested:
     dependency: transitive
     description:
@@ -632,14 +624,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
-  sheet:
-    dependency: "direct main"
-    description:
-      name: sheet
-      sha256: f26f8bb57a1a963ed5eaad2c8847a3ebafbccbabe954341c41a166f88885ce28
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.1"
   sky_engine:
     dependency: transitive
     description: flutter
