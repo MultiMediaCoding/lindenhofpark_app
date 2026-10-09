@@ -30,15 +30,15 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_map: ^8.3.2
+  flutter_map: ^7.0.2
   url_launcher: ^6.2.1
-  flutter_map_location_marker: ^10.3.0
-  geolocator: ^14.1.1
+  flutter_map_location_marker: ^9.0.0
+  geolocator: ^13.0.1
   latlong2: ^0.9.0
   flutter_svg: ^2.0.9
-  flutter_map_marker_cluster: ^8.2.2
+  flutter_map_marker_cluster: ^1.4.0
   provider: ^6.1.1
-  vector_map_tiles: ^10.0.0-beta.2
+  vector_map_tiles: ^8.0.0
   modal_bottom_sheet: ^3.0.0
   time_machine: ^0.9.17
   sheet: ^1.0.0
