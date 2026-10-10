@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Material, MaterialType;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:lindenhofpark/Common/view/symbol_icon.dart';
 import 'package:lindenhofpark/Licenses/model/license.dart';
 import 'package:lindenhofpark/Licenses/model/licenses.dart';
 import 'package:lindenhofpark/Licenses/view/license_view.dart';
-
-const _background = Color(0xFFDDDFD8);
-const _green = Color(0xFF3B6939);
 
 /// Lizenzen der verwendeten Pakete als Einstellungen-Liste im iOS-Stil:
 /// große Titelleiste, eingerückte Gruppe, Chevron.
@@ -13,29 +13,33 @@ class LicensesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoPageScaffold(
-      backgroundColor: _background,
-      child: CustomScrollView(
-        slivers: [
-          const CupertinoSliverNavigationBar(
-            largeTitle: Text('Lizenzen'),
-            backgroundColor: _background,
-          ),
-          SliverSafeArea(
-            top: false,
-            sliver: SliverToBoxAdapter(
-              child: CupertinoListSection.insetGrouped(
-                footer: const Text(
-                  'Die Lindenhofpark-App nutzt diese Open-Source-Pakete.',
+    // Material-Vorfahr liefert den Standard-Textstil (sonst gelb unterstrichen).
+    return Material(
+      type: MaterialType.transparency,
+      child: CupertinoPageScaffold(
+        backgroundColor: CupertinoColors.systemGroupedBackground,
+        child: CustomScrollView(
+          slivers: [
+            const CupertinoSliverNavigationBar(
+              largeTitle: Text('Lizenzen'),
+              backgroundColor: CupertinoColors.systemGroupedBackground,
+            ),
+            SliverSafeArea(
+              top: false,
+              sliver: SliverToBoxAdapter(
+                child: CupertinoListSection.insetGrouped(
+                  footer: const Text(
+                    'Die Lindenhofpark-App nutzt diese Open-Source-Pakete.',
+                  ),
+                  children: [
+                    for (final license in licenses)
+                      _LicenseTile(license: license),
+                  ],
                 ),
-                children: [
-                  for (final license in licenses)
-                    _LicenseTile(license: license),
-                ],
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -51,13 +55,13 @@ class _LicenseTile extends StatelessWidget {
     return CupertinoListTile.notched(
       leading: Container(
         decoration: BoxDecoration(
-          color: _green,
+          color: CupertinoColors.systemGrey,
           borderRadius: BorderRadius.circular(7),
         ),
         alignment: Alignment.center,
-        child: const Icon(
-          CupertinoIcons.cube_box_fill,
-          size: 18,
+        child: SymbolIcon(
+          symbol: symbolSpec('shippingbox.fill', FontAwesomeIcons.boxOpen),
+          size: 17,
           color: CupertinoColors.white,
         ),
       ),

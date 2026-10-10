@@ -30,7 +30,10 @@ class NativeGlass extends StatelessWidget {
                   )
                 : DecoratedBox(
                     decoration: BoxDecoration(
-                      color: const Color(0xE6F6F6F2),
+                      color: const Color(0xF7F6F6F2),
+                      boxShadow: const [
+                        BoxShadow(color: Color(0x33000000), blurRadius: 16),
+                      ],
                       borderRadius: BorderRadius.circular(radius),
                     ),
                   ),
