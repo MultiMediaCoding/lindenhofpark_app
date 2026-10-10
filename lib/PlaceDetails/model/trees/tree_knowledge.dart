@@ -48,8 +48,7 @@ class TreeKnowledge {
   static List<BiologicalFact> factsOf(ParkTree tree) {
     final own = specimen(tree);
     if (own != null) return own.biologicalFacts;
-    return species(tree)
-            ?.biologicalFacts
+    return species(tree)?.biologicalFacts
             .where((fact) => fact.speciesWide)
             .toList() ??
         const [];

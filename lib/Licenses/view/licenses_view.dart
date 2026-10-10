@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Material, MaterialType;
+import 'package:flutter/material.dart'
+    show Icons, ListTile, Material, MaterialType, Scaffold, SliverAppBar, Theme;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lindenhofpark/Common/view/symbol_icon.dart';
 import 'package:lindenhofpark/Licenses/model/license.dart';
@@ -14,6 +15,7 @@ class LicensesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!hasSfSymbols) return const _MaterialLicenses();
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     return Material(
       type: MaterialType.transparency,
@@ -82,9 +84,9 @@ class _LicenseRow extends StatelessWidget {
       padding: EdgeInsets.zero,
       minimumSize: Size.zero,
       pressedOpacity: 0.55,
-      onPressed: () => Navigator.of(context).push(
-        CupertinoPageRoute<void>(builder: (_) => LicenseView(license: license)),
-      ),
+      onPressed: () =>
+          Navigator.of(context)
+              .push(licenseRoute((_) => LicenseView(license: license))),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
@@ -119,6 +121,53 @@ class _LicenseRow extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Android: Material-3-Liste mit großer, einklappender Titelleiste.
+class _MaterialLicenses extends StatelessWidget {
+  const _MaterialLicenses();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          const SliverAppBar.large(title: Text('Lizenzen')),
+          SliverList.builder(
+            itemCount: licenses.length,
+            itemBuilder: (context, i) {
+              final license = licenses[i];
+              return ListTile(
+                leading: Icon(
+                  Icons.inventory_2_outlined,
+                  color: theme.colorScheme.primary,
+                ),
+                title: Text(license.name),
+                subtitle: Text(license.type),
+                onTap: () => Navigator.of(context)
+                    .push(licenseRoute((_) => LicenseView(license: license))),
+              );
+            },
+          ),
+          SliverSafeArea(
+            top: false,
+            sliver: SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Text(
+                  'Die Lindenhofpark-App nutzt diese Open-Source-Pakete.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

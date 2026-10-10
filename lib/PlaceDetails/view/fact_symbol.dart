@@ -39,7 +39,11 @@ class SymbolBadge extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.85),
+        color: !hasSfSymbols
+            ? Theme.of(context).colorScheme.secondaryContainer
+            : Theme.of(context).brightness == Brightness.dark
+            ? Colors.white.withValues(alpha: 0.14)
+            : Colors.white.withValues(alpha: 0.85),
         shape: BoxShape.circle,
       ),
       child: SymbolIcon(symbol: symbol, size: 14, color: _green),

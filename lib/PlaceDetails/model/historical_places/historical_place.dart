@@ -10,7 +10,9 @@ class HistoricalPlace {
 
 extension HistoricalPlaceObjectListExtension on List<HistoricalPlace> {
   HistoricalPlace getHistoricalPlaceByTitle(String title) {
-    return firstWhere((place) => place.title == title,
-        orElse: () => historicalPlaces.first);
+    return firstWhere(
+      (place) => place.title == title,
+      orElse: () => historicalPlaces.first,
+    );
   }
 }

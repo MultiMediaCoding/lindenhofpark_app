@@ -16,6 +16,12 @@ class MapObject {
   /// Zusätzliche Suchbegriffe, z. B. der lateinische Name.
   final String keywords;
 
-  MapObject(this.title, this.category, this.location,
-      {this.treeId, this.subtitle, this.keywords = ""});
+  MapObject(
+    this.title,
+    this.category,
+    this.location, {
+    this.treeId,
+    this.subtitle,
+    this.keywords = "",
+  });
 }

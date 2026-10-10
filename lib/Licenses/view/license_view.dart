@@ -1,6 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart'
-    show Material, MaterialType, SelectableText;
+    show
+        IconButton,
+        Icons,
+        Material,
+        MaterialType,
+        Scaffold,
+        SelectableText,
+        SliverAppBar,
+        Theme;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lindenhofpark/Common/view/symbol_icon.dart';
 import 'package:lindenhofpark/Licenses/model/license.dart';
@@ -40,6 +48,7 @@ class LicenseView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!hasSfSymbols) return _buildMaterial(context);
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
     return Material(
       type: MaterialType.transparency,
@@ -98,6 +107,52 @@ class LicenseView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMaterial(BuildContext context) {
+    final theme = Theme.of(context);
+    final secondary = theme.colorScheme.onSurfaceVariant;
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar.large(
+            title: Text(license.name),
+            actions: [
+              IconButton(
+                tooltip: 'Quelle öffnen',
+                icon: const Icon(Icons.open_in_new),
+                onPressed: _openSource,
+              ),
+            ],
+          ),
+          SliverSafeArea(
+            top: false,
+            minimum: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            sliver: SliverList.list(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    license.type,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+                SelectableText(
+                  _text,
+                  scrollPhysics: const NeverScrollableScrollPhysics(),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    height: 1.45,
+                    color: secondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

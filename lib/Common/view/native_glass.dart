@@ -17,6 +17,7 @@ class NativeGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
     return Stack(
       children: [
@@ -24,13 +25,16 @@ class NativeGlass extends StatelessWidget {
           child: IgnorePointer(
             child: isIOS
                 ? UiKitView(
+                    key: ValueKey(dark),
                     viewType: viewType,
-                    creationParams: {'radius': radius},
+                    creationParams: {'radius': radius, 'dark': dark},
                     creationParamsCodec: const StandardMessageCodec(),
                   )
                 : DecoratedBox(
                     decoration: BoxDecoration(
-                      color: const Color(0xF7F6F6F2),
+                      color: dark
+                          ? const Color(0xF71F2421)
+                          : const Color(0xF7F6F6F2),
                       boxShadow: const [
                         BoxShadow(color: Color(0x33000000), blurRadius: 16),
                       ],

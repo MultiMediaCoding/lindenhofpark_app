@@ -8,8 +8,16 @@ final String sheetFont = hasSfSymbols ? 'CupertinoSystemText' : 'Inter';
 /// Breite Variante des Systemschnitts für Titel.
 final String sheetTitleFont = hasSfSymbols ? 'CupertinoSystemDisplay' : 'Inter';
 
-const Color sheetInk = Color(0xFF1D2420);
-const Color sheetInkSoft = Color(0xFF6A746E);
+/// Textfarben des Sheets, je nach hellem oder dunklem Erscheinungsbild.
+extension SheetColors on BuildContext {
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+  Color get sheetInk => hasSfSymbols
+      ? (isDark ? const Color(0xFFF1F4F2) : const Color(0xFF1D2420))
+      : Theme.of(this).colorScheme.onSurface;
+  Color get sheetInkSoft => hasSfSymbols
+      ? (isDark ? const Color(0xFFA2ACA6) : const Color(0xFF6A746E))
+      : Theme.of(this).colorScheme.onSurfaceVariant;
+}
 
 /// Hellere, abgerundete Karte auf dem Glas, wie in Apple Karten.
 class GlassCard extends StatelessWidget {
@@ -25,8 +33,10 @@ class GlassCard extends StatelessWidget {
       padding:
           padding ?? const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(22),
+        color: hasSfSymbols
+            ? Colors.white.withValues(alpha: context.isDark ? 0.1 : 0.5)
+            : Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(hasSfSymbols ? 22 : 16),
       ),
       child: child,
     );
@@ -53,7 +63,7 @@ class InfoRows extends StatelessWidget {
                 height: 1,
                 thickness: 0.5,
                 indent: SymbolBadge.size + 12,
-                color: sheetInk.withValues(alpha: 0.18),
+                color: context.sheetInk.withValues(alpha: 0.18),
               ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -67,18 +77,18 @@ class InfoRows extends StatelessWidget {
                       children: [
                         Text(
                           rows[i].label,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
-                            color: sheetInkSoft,
+                            color: context.sheetInkSoft,
                           ),
                         ),
                         const SizedBox(height: 1),
                         Text(
                           rows[i].value,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w400,
-                            color: sheetInk,
+                            color: context.sheetInk,
                           ),
                         ),
                       ],

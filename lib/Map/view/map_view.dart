@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lindenhofpark/Common/view/map_button.dart';
+import 'package:lindenhofpark/Common/view/symbol_icon.dart';
+import 'package:lindenhofpark/Licenses/view/license_style.dart';
 import 'package:lindenhofpark/Licenses/view/licenses_view.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
@@ -177,16 +179,62 @@ class _MapControls extends StatelessWidget {
     );
   }
 
+  static const _creditsText =
+      "Bäume: Baumkataster GTL Lindau, Stand 2023\n"
+      "Wege und Gebäude: © OpenStreetMap-Mitwirkende\n"
+      "Gelände: Bayerische Vermessungsverwaltung, geodaten.bayern.de";
+
+  /// Android: Material-Bottom-Sheet mit den Quellen und zwei Einträgen.
+  void _showMaterialCredits(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(
+                "Quellen",
+                style: Theme.of(sheetContext).textTheme.titleLarge,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(_creditsText),
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text("OpenStreetMap-Copyright"),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                urlViewModel.launchOpenStreetMapCopyrightSite();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.description_outlined),
+              title: const Text("Lizenzen"),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                Navigator.of(context)
+                    .push(licenseRoute((_) => const LicensesView()));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showCredits(BuildContext context) {
+    if (!hasSfSymbols) return _showMaterialCredits(context);
     showCupertinoModalPopup<void>(
       context: context,
       builder: (sheetContext) => CupertinoActionSheet(
         title: const Text("Quellen"),
-        message: const Text(
-          "Bäume: Baumkataster GTL Lindau, Stand 2023\n"
-          "Wege und Gebäude: © OpenStreetMap-Mitwirkende\n"
-          "Gelände: Bayerische Vermessungsverwaltung, geodaten.bayern.de",
-        ),
+        message: const Text(_creditsText),
         actions: [
           CupertinoActionSheetAction(
             onPressed: () {
@@ -198,9 +246,8 @@ class _MapControls extends StatelessWidget {
           CupertinoActionSheetAction(
             onPressed: () {
               Navigator.of(sheetContext).pop();
-              Navigator.of(context).push(
-                CupertinoPageRoute<void>(builder: (_) => const LicensesView()),
-              );
+              Navigator.of(context)
+                  .push(licenseRoute((_) => const LicensesView()));
             },
             child: const Text("Lizenzen"),
           ),

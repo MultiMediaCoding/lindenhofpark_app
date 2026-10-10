@@ -34,36 +34,28 @@ class MapButton extends StatelessWidget {
         onPressed: onPressed,
       );
     }
-    final tint = color ?? const Color(0xFF1D2420);
+    final scheme = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
       label: label,
       excludeSemantics: true,
-      child: Material(
-        color: const Color(0xF2FFFFFF),
-        shape: const CircleBorder(),
-        elevation: 3,
-        shadowColor: const Color(0x40000000),
-        child: InkResponse(
-          onTap: onPressed,
-          containedInkWell: true,
-          customBorder: const CircleBorder(),
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: Center(
-              child: fallbackText != null
-                  ? Text(
-                      fallbackText!,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: tint,
-                      ),
-                    )
-                  : Icon(fallbackIcon, size: 22, color: tint),
-            ),
-          ),
+      child: Tooltip(
+        message: label,
+        child: FloatingActionButton.small(
+          heroTag: null,
+          onPressed: onPressed,
+          elevation: 2,
+          backgroundColor: scheme.surfaceContainerHigh,
+          foregroundColor: color ?? scheme.onSurface,
+          child: fallbackText != null
+              ? Text(
+                  fallbackText!,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              : Icon(fallbackIcon, size: 22),
         ),
       ),
     );

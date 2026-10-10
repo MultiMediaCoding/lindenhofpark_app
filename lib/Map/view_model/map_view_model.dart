@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:lindenhofpark/Common/view/night_mode.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
@@ -16,7 +17,12 @@ import 'package:webview_flutter/webview_flutter.dart';
 /// Kanal `ParkChannel` JSON-Ereignisse zurück:
 /// `ready`, `tree {id}`, `place {title}`, `deselect`, `heading {deg}`, `outside`.
 class MapViewModel extends ChangeNotifier {
-  MapViewModel({this.onTreeTapped, this.onPlaceTapped, this.onDeselected, this.onOutsidePark}) {
+  MapViewModel({
+    this.onTreeTapped,
+    this.onPlaceTapped,
+    this.onDeselected,
+    this.onOutsidePark,
+  }) {
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFFF3F2EC))
@@ -67,28 +73,29 @@ class MapViewModel extends ChangeNotifier {
   }
 
   List<Map<String, Object>> _places() => [
-        for (final o in mapObjects)
-          if (o.category.category == MapObjectCategoryType.historicalPlace)
-            {
-              'title': o.title,
-              'lat': o.location.latitude,
-              'lon': o.location.longitude,
-            },
-      ];
+    for (final o in mapObjects)
+      if (o.category.category == MapObjectCategoryType.historicalPlace)
+        {
+          'title': o.title,
+          'lat': o.location.latitude,
+          'lon': o.location.longitude,
+        },
+  ];
 
   Future<void> _startLocation() async {
     try {
       _position = await PositionLocator().determinePosition();
       _sendPosition(_position!);
-      _positionSubscription = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 3,
-        ),
-      ).listen((position) {
-        _position = position;
-        _sendPosition(position);
-      }, onError: (_) {});
+      _positionSubscription =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 3,
+            ),
+          ).listen((position) {
+            _position = position;
+            _sendPosition(position);
+          }, onError: (_) {});
     } catch (_) {
       // Ohne Standort bleibt die Karte voll nutzbar, nur ohne blauen Punkt.
     }
@@ -112,6 +119,7 @@ class MapViewModel extends ChangeNotifier {
 
   void toggleNight() {
     isNight = !isNight;
+    nightMode.value = isNight;
     _run('ParkApp.setNight($isNight)');
     notifyListeners();
   }

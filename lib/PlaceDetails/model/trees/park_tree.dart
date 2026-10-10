@@ -43,9 +43,9 @@ class ParkTree {
   final String parcel;
 
   LatLng get location => LatLng(
-        _originLatitude + y / _metersPerDegreeLatitude,
-        _originLongitude + x / _metersPerDegreeLongitude,
-      );
+    _originLatitude + y / _metersPerDegreeLatitude,
+    _originLongitude + x / _metersPerDegreeLongitude,
+  );
 
   double get trunkDiameterM => trunkCircumferenceCm / 100 / 3.141592653589793;
 }

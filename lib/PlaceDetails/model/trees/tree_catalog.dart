@@ -23,8 +23,8 @@ class TreeCatalog {
   /// Altersstufe, Parzelle]; Art: [Name, lat. Name, Wuchsform, Nadelbaum].
   factory TreeCatalog.parse(String source) {
     final data = jsonDecode(
-            source.substring(source.indexOf('{'), source.lastIndexOf('}') + 1))
-        as Map<String, dynamic>;
+      source.substring(source.indexOf('{'), source.lastIndexOf('}') + 1),
+    ) as Map<String, dynamic>;
     final species = data['species'] as List;
     final ages = data['age'] as List;
     final parcels = data['parz'] as List;

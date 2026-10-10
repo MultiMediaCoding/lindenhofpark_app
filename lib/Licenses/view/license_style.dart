@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show MaterialPageRoute;
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:lindenhofpark/Common/view/symbol_icon.dart';
 
@@ -91,3 +92,8 @@ class LicenseGroup extends StatelessWidget {
     );
   }
 }
+
+/// Seitenwechsel im Stil der Plattform: iOS-Wischgeste bzw. Material-Übergang.
+Route<void> licenseRoute(WidgetBuilder builder) => hasSfSymbols
+    ? CupertinoPageRoute<void>(builder: builder)
+    : MaterialPageRoute<void>(builder: builder);

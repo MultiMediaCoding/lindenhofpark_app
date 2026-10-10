@@ -27,16 +27,19 @@ final class GlassViewFactory: NSObject, FlutterPlatformViewFactory {
   }
 
   func create(withFrame frame: CGRect, viewIdentifier viewId: Int64, arguments args: Any?) -> FlutterPlatformView {
-    let radius = ((args as? [String: Any])?["radius"] as? NSNumber)?.doubleValue ?? 32
-    return GlassPlatformView(radius: CGFloat(radius))
+    let params = args as? [String: Any]
+    let radius = (params?["radius"] as? NSNumber)?.doubleValue ?? 32
+    let dark = (params?["dark"] as? Bool) ?? false
+    return GlassPlatformView(radius: CGFloat(radius), dark: dark)
   }
 }
 
 final class GlassPlatformView: NSObject, FlutterPlatformView {
   private let effectView = UIVisualEffectView()
 
-  init(radius: CGFloat) {
+  init(radius: CGFloat, dark: Bool) {
     super.init()
+    effectView.overrideUserInterfaceStyle = dark ? .dark : .light
     if #available(iOS 26.0, *) {
       effectView.effect = UIGlassEffect()
       effectView.cornerConfiguration = .corners(radius: .fixed(radius))

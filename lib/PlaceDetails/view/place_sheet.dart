@@ -22,7 +22,167 @@ import 'package:lindenhofpark/PlaceDetails/view/glass_card.dart';
 
 String _meters(double value) => value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
 
-/// Detailblatt über der Karte: Liquid-Glass-Sheet mit zwei Rasten (klein /
+/// Detailblatt über der Karte: auf Apple-Geräten ein Liquid-Glass-Sheet, sonst
+/// das Material-3-Bottom-Sheet.
+class PlaceSheet extends StatelessWidget {
+  const PlaceSheet({
+    super.key,
+    required this.mapObject,
+    required this.visible,
+    required this.onDismissed,
+  });
+
+  final MapObject mapObject;
+
+  /// `false`: das Blatt fährt aus (Auswahl wurde aufgehoben).
+  final bool visible;
+
+  /// Das Blatt ist ganz heruntergefahren und kann entfernt werden.
+  final VoidCallback onDismissed;
+
+  @override
+  Widget build(BuildContext context) => hasSfSymbols
+      ? _CupertinoPlaceSheet(
+          mapObject: mapObject,
+          visible: visible,
+          onDismissed: onDismissed,
+        )
+      : _MaterialPlaceSheet(
+          mapObject: mapObject,
+          visible: visible,
+          onDismissed: onDismissed,
+        );
+}
+
+/// Android: Standard-Bottom-Sheet von Material 3 mit Ziehgriff, zwei Rasten
+/// und Wegwischen nach unten. Die Karte dahinter bleibt bedienbar.
+class _MaterialPlaceSheet extends StatefulWidget {
+  const _MaterialPlaceSheet({
+    required this.mapObject,
+    required this.visible,
+    required this.onDismissed,
+  });
+
+  final MapObject mapObject;
+  final bool visible;
+  final VoidCallback onDismissed;
+
+  @override
+  State<_MaterialPlaceSheet> createState() => _MaterialPlaceSheetState();
+}
+
+class _MaterialPlaceSheetState extends State<_MaterialPlaceSheet> {
+  static const _small = 0.45;
+  static const _large = 0.93;
+
+  final _controller = DraggableScrollableController();
+  bool _opened = false;
+  bool _dismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onExtent);
+  }
+
+  @override
+  void didUpdateWidget(_MaterialPlaceSheet old) {
+    super.didUpdateWidget(old);
+    if (!_controller.isAttached) return;
+    if (old.mapObject != widget.mapObject && widget.visible) {
+      _animate(_small);
+    } else if (!widget.visible && old.visible) {
+      _animate(0);
+    } else if (widget.visible && !old.visible) {
+      _dismissed = false;
+      _animate(_small);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _animate(double size) => _controller.animateTo(
+    size,
+    duration: const Duration(milliseconds: 300),
+    curve: Curves.easeOutCubic,
+  );
+
+  /// Ganz heruntergewischt: Auswahl aufheben und Blatt entfernen.
+  void _onExtent() {
+    if (!_controller.isAttached) return;
+    if (_controller.size > 0.5 * _small) {
+      _opened = true;
+      return;
+    }
+    if (_opened && !_dismissed && _controller.size < 0.02) {
+      _dismissed = true;
+      widget.onDismissed();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    return Positioned.fill(
+      child: DraggableScrollableSheet(
+        controller: _controller,
+        initialChildSize: _small,
+        minChildSize: 0,
+        maxChildSize: _large,
+        snap: true,
+        snapSizes: const [_small],
+        shouldCloseOnMinExtent: false,
+        builder: (context, scrollController) => Material(
+          color: scheme.surfaceContainerLow,
+          elevation: 1,
+          surfaceTintColor: scheme.surfaceTint,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: CustomScrollView(
+            controller: scrollController,
+            slivers: [
+              SliverToBoxAdapter(
+                child: Center(
+                  child: Container(
+                    width: 32,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: scheme.onSurfaceVariant.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 24),
+                sliver: SliverToBoxAdapter(child: _content(widget.mapObject)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+Widget _content(MapObject mapObject) {
+  if (mapObject.category.category == MapObjectCategoryType.tree) {
+    return _TreeContent(tree: treeCatalog.byId(mapObject.treeId!)!);
+  }
+  return _PlaceContent(
+    place: historicalPlaces.getHistoricalPlaceByTitle(mapObject.title),
+  );
+}
+
+/// Apple: Liquid-Glass-Sheet mit zwei Rasten (klein /
 /// groß); die Karte dahinter bleibt bedienbar.
 ///
 /// Das Blatt hat eine feste Höhe und wird nur verschoben (`Transform`), damit
@@ -30,9 +190,8 @@ String _meters(double value) => value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
 /// Das Einrasten läuft über eine Feder, die die Fingergeschwindigkeit
 /// übernimmt; Ziehen am Inhalt, am Griff und Scrollen sind ein einziger
 /// Gestenpfad.
-class PlaceSheet extends StatefulWidget {
-  const PlaceSheet({
-    super.key,
+class _CupertinoPlaceSheet extends StatefulWidget {
+  const _CupertinoPlaceSheet({
     required this.mapObject,
     required this.visible,
     required this.onDismissed,
@@ -47,10 +206,10 @@ class PlaceSheet extends StatefulWidget {
   final VoidCallback onDismissed;
 
   @override
-  State<PlaceSheet> createState() => _PlaceSheetState();
+  State<_CupertinoPlaceSheet> createState() => _PlaceSheetState();
 }
 
-class _PlaceSheetState extends State<PlaceSheet>
+class _PlaceSheetState extends State<_CupertinoPlaceSheet>
     with SingleTickerProviderStateMixin {
   static const double _smallFraction = 0.45;
   static const double _largeFraction = 0.93;
@@ -110,7 +269,7 @@ class _PlaceSheetState extends State<PlaceSheet>
   }
 
   @override
-  void didUpdateWidget(PlaceSheet old) {
+  void didUpdateWidget(_CupertinoPlaceSheet old) {
     super.didUpdateWidget(old);
     if (old.mapObject != widget.mapObject) {
       if (_scroll.hasClients) _scroll.jumpTo(0);
@@ -360,7 +519,7 @@ class _Header extends StatelessWidget {
                 width: 57,
                 height: 3.5,
                 decoration: BoxDecoration(
-                  color: sheetInk.withValues(alpha: 0.3),
+                  color: context.sheetInk.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -378,10 +537,14 @@ class _Header extends StatelessWidget {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: sheetInk.withValues(alpha: 0.1),
+                    color: context.sheetInk.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.close, size: 17, color: sheetInkSoft),
+                  child: Icon(
+                    Icons.close,
+                    size: 17,
+                    color: context.sheetInkSoft,
+                  ),
                 ),
               ),
             ),
@@ -436,15 +599,15 @@ class _Title extends StatelessWidget {
               letterSpacing: 0.2,
               fontFamily: sheetTitleFont,
               fontVariations: const [FontVariation('wdth', 125)],
-              color: sheetInk,
+              color: context.sheetInk,
             ),
           ),
           Text(
             subtitle,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               height: 1.2,
-              color: sheetInkSoft,
+              color: context.sheetInkSoft,
             ),
           ),
         ],
@@ -518,14 +681,14 @@ class _TreeContent extends StatelessWidget {
           ],
         ),
         if (facts.isNotEmpty) ...[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(7, 14, 7, 12),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(7, 14, 7, 12),
             child: Text(
               "Wissenswertes",
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
-                color: sheetInk,
+                color: context.sheetInk,
               ),
             ),
           ),
@@ -579,10 +742,10 @@ class _FactCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   fact.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: sheetInk,
+                    color: context.sheetInk,
                   ),
                 ),
               ),
@@ -591,11 +754,15 @@ class _FactCard extends StatelessWidget {
           Divider(
             height: 25,
             thickness: 0.5,
-            color: sheetInk.withValues(alpha: 0.18),
+            color: context.sheetInk.withValues(alpha: 0.18),
           ),
           Text(
             fact.content,
-            style: const TextStyle(fontSize: 17, height: 1.25, color: sheetInk),
+            style: TextStyle(
+              fontSize: 17,
+              height: 1.25,
+              color: context.sheetInk,
+            ),
           ),
         ],
       ),
@@ -619,7 +786,11 @@ class _PlaceContent extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Text(
             place.description,
-            style: const TextStyle(fontSize: 16, height: 1.4, color: sheetInk),
+            style: TextStyle(
+              fontSize: 16,
+              height: 1.4,
+              color: context.sheetInk,
+            ),
           ),
         ),
       ],

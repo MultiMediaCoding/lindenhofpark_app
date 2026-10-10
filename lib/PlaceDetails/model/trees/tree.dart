@@ -16,8 +16,16 @@ class Tree {
   String leafTypeName = "";
   final List<BiologicalFact> biologicalFacts;
 
-  Tree(this.title, this.image, this.latinName, this.height, this.plantedAt,
-      this.origin, this.leafType, this.biologicalFacts) {
+  Tree(
+    this.title,
+    this.image,
+    this.latinName,
+    this.height,
+    this.plantedAt,
+    this.origin,
+    this.leafType,
+    this.biologicalFacts,
+  ) {
     age = _ageOfTree();
     leafTypeName = leaveTypes[leafType] ?? "";
   }
