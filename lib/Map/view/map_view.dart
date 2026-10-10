@@ -1,6 +1,7 @@
 import 'package:cupertino_native/cupertino_native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lindenhofpark/Licenses/view/licenses_view.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
@@ -25,12 +26,20 @@ class MapView extends StatefulWidget {
 
 class _MapViewState extends State<MapView> {
   late final MapViewModel _viewModel = MapViewModel(
-    onTreeTapped: (id) => selectedMapObject.value = _viewModel.mapObjectForTree(id),
-    onPlaceTapped: (title) =>
-        selectedMapObject.value = _viewModel.mapObjectForPlace(title),
+    onTreeTapped: (id) {
+      HapticFeedback.lightImpact();
+      selectedMapObject.value = _viewModel.mapObjectForTree(id);
+    },
+    onPlaceTapped: (title) {
+      HapticFeedback.lightImpact();
+      selectedMapObject.value = _viewModel.mapObjectForPlace(title);
+    },
     onDeselected: () => selectedMapObject.value = null,
     onOutsidePark: _showOutsidePark,
   );
+
+  /// Das angezeigte Objekt bleibt, bis das Blatt ausgefahren ist.
+  MapObject? _displayed;
 
   @override
   void initState() {
@@ -48,6 +57,11 @@ class _MapViewState extends State<MapView> {
   /// Auswahl aus der Suchliste oder dem Blatt: Karte folgt.
   void _onSelectionChanged() {
     final selected = selectedMapObject.value;
+    if (selected != null) {
+      setState(() => _displayed = selected);
+    } else if (_displayed != null) {
+      setState(() {}); // Blatt fährt aus und meldet sich dann ab
+    }
     if (selected == null) {
       _viewModel.clearSelection();
     } else if (selected.treeId != null) {
@@ -71,16 +85,16 @@ class _MapViewState extends State<MapView> {
         children: [
           WebViewWidget(controller: _viewModel.controller),
           const _MapControls(),
-          ValueListenableBuilder<MapObject?>(
-            valueListenable: selectedMapObject,
-            builder: (context, selected, _) => selected == null
-                ? const SizedBox.shrink()
-                : PlaceSheet(
-                    key: ValueKey(selected),
-                    mapObject: selected,
-                    onClose: () => selectedMapObject.value = null,
-                  ),
-          ),
+          if (_displayed != null)
+            PlaceSheet(
+              mapObject: _displayed!,
+              visible: selectedMapObject.value != null,
+              onDismissed: () {
+                if (!mounted) return;
+                selectedMapObject.value = null;
+                setState(() => _displayed = null);
+              },
+            ),
         ],
       ),
     );
@@ -92,7 +106,7 @@ class _MapControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<MapViewModel>();
+    final viewModel = context.read<MapViewModel>();
     return SafeArea(
       child: Align(
         alignment: Alignment.topRight,
@@ -106,8 +120,14 @@ class _MapControls extends StatelessWidget {
                 icon: const CNSymbol('magnifyingglass', size: 17),
                 onPressed: () => _showSearch(context),
               ),
-              Transform.rotate(
-                angle: viewModel.heading * 3.141592653589793 / 180,
+              // Nur der Kompass hört auf `heading`; die übrigen Knöpfe bleiben
+              // unberührt.
+              Selector<MapViewModel, double>(
+                selector: (_, m) => m.heading,
+                builder: (context, heading, child) => Transform.rotate(
+                  angle: heading * 3.141592653589793 / 180,
+                  child: child,
+                ),
                 child: CNButton.icon(
                   icon: const CNSymbol('location.north.fill',
                       size: 17, color: Color(0xFFE5533D)),
@@ -118,14 +138,20 @@ class _MapControls extends StatelessWidget {
                 icon: const CNSymbol('location', size: 17),
                 onPressed: viewModel.locate,
               ),
-              CNButton.icon(
-                icon: CNSymbol(viewModel.is3D ? 'view.2d' : 'view.3d', size: 17),
-                onPressed: viewModel.toggleTilt,
+              Selector<MapViewModel, bool>(
+                selector: (_, m) => m.is3D,
+                builder: (context, is3D, _) => CNButton.icon(
+                  icon: CNSymbol(is3D ? 'view.2d' : 'view.3d', size: 17),
+                  onPressed: viewModel.toggleTilt,
+                ),
               ),
-              CNButton.icon(
-                icon: CNSymbol(viewModel.isNight ? 'sun.max.fill' : 'moon.fill',
-                    size: 17),
-                onPressed: viewModel.toggleNight,
+              Selector<MapViewModel, bool>(
+                selector: (_, m) => m.isNight,
+                builder: (context, isNight, _) => CNButton.icon(
+                  icon: CNSymbol(isNight ? 'sun.max.fill' : 'moon.fill',
+                      size: 17),
+                  onPressed: viewModel.toggleNight,
+                ),
               ),
               CNButton.icon(
                 icon: const CNSymbol('info', size: 17),

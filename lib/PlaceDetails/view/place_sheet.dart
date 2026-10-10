@@ -1,4 +1,7 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/physics.dart';
+import 'package:flutter/services.dart';
 import 'package:lindenhofpark/BiologicalFacts/model/biolocial_fact.dart';
 import 'package:lindenhofpark/Common/view/native_glass.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
@@ -17,68 +20,180 @@ String _meters(double value) => value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
 
 /// Detailblatt über der Karte: Liquid-Glass-Sheet mit zwei Rasten (klein /
 /// groß); die Karte dahinter bleibt bedienbar.
+///
+/// Das Blatt hat eine feste Höhe und wird nur verschoben (`Transform`), damit
+/// beim Ziehen weder Inhalt noch die native Glasfläche neu gelayoutet werden.
+/// Das Einrasten läuft über eine Feder, die die Fingergeschwindigkeit
+/// übernimmt; Ziehen am Inhalt, am Griff und Scrollen sind ein einziger
+/// Gestenpfad.
 class PlaceSheet extends StatefulWidget {
-  const PlaceSheet({super.key, required this.mapObject, required this.onClose});
+  const PlaceSheet({
+    super.key,
+    required this.mapObject,
+    required this.visible,
+    required this.onDismissed,
+  });
 
   final MapObject mapObject;
-  final VoidCallback onClose;
+
+  /// `false`: das Blatt fährt per Feder aus (Auswahl wurde aufgehoben).
+  final bool visible;
+
+  /// Das Blatt ist ganz heruntergefahren und kann entfernt werden.
+  final VoidCallback onDismissed;
 
   @override
   State<PlaceSheet> createState() => _PlaceSheetState();
 }
 
-class _PlaceSheetState extends State<PlaceSheet> {
-  static const double _min = 0.2;
-  static const double _small = 0.45;
-  static const double _large = 0.93;
+class _PlaceSheetState extends State<PlaceSheet>
+    with SingleTickerProviderStateMixin {
+  static const double _smallFraction = 0.45;
+  static const double _largeFraction = 0.93;
 
-  final _controller = DraggableScrollableController();
-  bool _closing = false;
+  /// Unter dem Rand versteckter Überstand, damit die Feder über die große
+  /// Raste hinausschwingen darf, ohne dass unten eine Lücke aufblitzt.
+  static const double _overscan = 80;
+
+  /// Etwa Apples Standardfeder (Response 0,4 s, Dämpfung 0,85).
+  static const _spring = SpringDescription(
+    mass: 1,
+    stiffness: 250,
+    damping: 27,
+  );
+
+  /// Sichtbare Höhe des Blatts in Punkten; wird direkt vom Controller
+  /// getrieben (0 = ausgeblendet).
+  late final AnimationController _extent = AnimationController.unbounded(
+    vsync: this,
+  );
+  final _scroll = ScrollController();
+
+  double _height = 0;
+  int? _pointer;
+  VelocityTracker? _tracker;
+  bool _sheetDragged = false;
+  bool _dismissing = false;
+  double _lastDetent = 0;
+
+  double get _small => _height * _smallFraction;
+  double get _large => _height * _largeFraction;
+
+  /// Scrollen im Inhalt ist gesperrt, solange das Blatt nicht ganz oben ist und
+  /// für den Rest einer Geste, in der das Blatt bewegt wurde. So rutscht der
+  /// Inhalt nicht mit, wenn man das Blatt nur hochzieht; gescrollt wird erst
+  /// mit einer neuen Geste. (Das Flag bleibt bis zum nächsten Antippen stehen,
+  /// damit auch das Nachlaufen nach dem Loslassen unterdrückt wird.)
+  bool get _scrollBlocked => _sheetDragged || _extent.value < _large - 0.5;
 
   MapObject get mapObject => widget.mapObject;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _precacheHero();
+      _lastDetent = _small;
+      _animateTo(_small, 0);
+    });
+  }
+
+  @override
+  void didUpdateWidget(PlaceSheet old) {
+    super.didUpdateWidget(old);
+    if (old.mapObject != widget.mapObject) {
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+      _precacheHero();
+    }
+    if (widget.visible && !old.visible) {
+      _dismissing = false;
+      if (_extent.value < _small) _animateTo(_small, 0);
+    } else if (!widget.visible && old.visible) {
+      _dismiss(haptic: false);
+    }
+  }
+
+  @override
   void dispose() {
-    _controller.dispose();
+    _extent.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
-  void _close() {
-    if (_closing) return;
-    _closing = true;
-    widget.onClose();
+  void _precacheHero() {
+    final path = _heroPath();
+    if (path != null) precacheImage(_sheetImage(context, path), context);
   }
 
-  /// Zieher am Griff: das Blatt folgt dem Finger, beim Loslassen rastet es auf
-  /// die nächste Stufe ein oder schließt sich, wenn es tief genug gezogen ist.
-  void _dragHandle(double deltaY, double height) {
-    if (!_controller.isAttached) return;
-    _controller.jumpTo(
-      (_controller.size - deltaY / height).clamp(_min, _large),
+  String? _heroPath() {
+    if (mapObject.category.category == MapObjectCategoryType.tree) {
+      final tree = treeCatalog.byId(mapObject.treeId!);
+      return tree == null ? null : TreeKnowledge.imageOf(tree);
+    }
+    return historicalPlaces.getHistoricalPlaceByTitle(mapObject.title).image;
+  }
+
+  void _animateTo(double target, double velocity) {
+    _extent
+        .animateWith(SpringSimulation(_spring, _extent.value, target, velocity))
+        .then((_) {
+          if (target == 0 && mounted && _dismissing) widget.onDismissed();
+        });
+  }
+
+  void _dismiss({bool haptic = true}) {
+    if (_dismissing) return;
+    _dismissing = true;
+    if (haptic) HapticFeedback.lightImpact();
+    _animateTo(0, 0);
+  }
+
+  void _settle(double velocity) {
+    final projected = _extent.value + velocity * 0.12;
+    final target = [0.0, _small, _large].reduce(
+      (a, b) => (a - projected).abs() < (b - projected).abs() ? a : b,
     );
+    if (target == 0 || !widget.visible) {
+      _dismiss();
+      return;
+    }
+    if (target != _lastDetent) HapticFeedback.selectionClick();
+    _lastDetent = target;
+    _animateTo(target, velocity);
   }
 
-  void _releaseHandle(double velocityY, double height) {
-    if (!_controller.isAttached) return;
-    final size = _controller.size;
-    final flick = velocityY / height; // Anteile der Höhe pro Sekunde
-    final target = flick.abs() > 0.8
-        ? (flick > 0
-              ? (size > _small ? _small : _min)
-              : (size < _small ? _small : _large))
-        : [
-            _min,
-            _small,
-            _large,
-          ].reduce((a, b) => (a - size).abs() < (b - size).abs() ? a : b);
-    if (target == _min) {
-      _close();
-    } else {
-      _controller.animateTo(
-        target,
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-      );
+  void _onDown(PointerDownEvent e) {
+    if (_pointer != null) return;
+    _pointer = e.pointer;
+    _tracker = VelocityTracker.withKind(e.kind)
+      ..addPosition(e.timeStamp, e.position);
+    _sheetDragged = false;
+    _dismissing = false;
+    _extent.stop();
+  }
+
+  void _onMove(PointerMoveEvent e) {
+    if (e.pointer != _pointer) return;
+    _tracker?.addPosition(e.timeStamp, e.position);
+    final dy = e.delta.dy;
+    final atTop = !_scroll.hasClients || _scroll.offset <= 0.5;
+    // Das Blatt nimmt die Bewegung, solange es nicht ganz oben ist oder der
+    // Inhalt oben anliegt und nach unten gezogen wird (Scroll ist dann gesperrt
+    // beziehungsweise geklemmt, siehe [_SheetScrollPhysics]).
+    if (_extent.value < _large - 0.5 || (dy > 0 && atTop)) {
+      _extent.value = (_extent.value - dy).clamp(0.0, _large);
+      _sheetDragged = true;
+    }
+  }
+
+  void _onUp(PointerEvent e) {
+    if (e.pointer != _pointer) return;
+    _pointer = null;
+    final velocity = -(_tracker?.getVelocity().pixelsPerSecond.dy ?? 0);
+    _tracker = null;
+    if (_sheetDragged || e is PointerCancelEvent) {
+      if (_sheetDragged) _settle(velocity);
     }
   }
 
@@ -91,51 +206,61 @@ class _PlaceSheetState extends State<PlaceSheet> {
       top: 0,
       bottom: 0,
       child: LayoutBuilder(
-        builder: (context, constraints) => DraggableScrollableSheet(
-          controller: _controller,
-          initialChildSize: _small,
-          minChildSize: _min,
-          maxChildSize: _large,
-          snap: true,
-          snapSizes: const [_small, _large],
-          builder: (context, scrollController) =>
-              NotificationListener<DraggableScrollableNotification>(
-                onNotification: (n) {
-                  if (n.extent <= _min + 0.001) _close();
-                  return false;
-                },
-                child: NativeGlass(
-                  radius: 32,
-                  child: DefaultTextStyle.merge(
-                    style: const TextStyle(fontFamily: sheetFont),
-                    child: CustomScrollView(
-                      controller: scrollController,
-                      physics: const ClampingScrollPhysics(),
-                      slivers: [
-                        SliverToBoxAdapter(
-                          child: _Header(
-                            onClose: widget.onClose,
-                            onDrag: (dy) =>
-                                _dragHandle(dy, constraints.maxHeight),
-                            onRelease: (v) =>
-                                _releaseHandle(v, constraints.maxHeight),
-                          ),
-                        ),
-                        SliverPadding(
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            0,
-                            16,
-                            bottomInset + 24,
-                          ),
-                          sliver: SliverToBoxAdapter(child: _content()),
-                        ),
-                      ],
+        builder: (context, constraints) {
+          _height = constraints.maxHeight;
+          final large = _large;
+          final sheet = RepaintBoundary(
+            child: NativeGlass(
+              radius: 32,
+              child: DefaultTextStyle.merge(
+                style: const TextStyle(fontFamily: sheetFont),
+                child: Listener(
+                  onPointerDown: _onDown,
+                  onPointerMove: _onMove,
+                  onPointerUp: _onUp,
+                  onPointerCancel: _onUp,
+                  child: CustomScrollView(
+                    controller: _scroll,
+                    physics: _SheetScrollPhysics(
+                      isLocked: () => _scrollBlocked,
                     ),
+                    slivers: [
+                      SliverToBoxAdapter(child: _Header(onClose: _dismiss)),
+                      SliverPadding(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          0,
+                          16,
+                          bottomInset + 24 + _overscan,
+                        ),
+                        sliver: SliverToBoxAdapter(child: _content()),
+                      ),
+                    ],
                   ),
                 ),
               ),
-        ),
+            ),
+          );
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: -_overscan,
+                height: large + _overscan,
+                child: AnimatedBuilder(
+                  animation: _extent,
+                  child: sheet,
+                  builder: (context, child) => Transform.translate(
+                    offset: Offset(0, large - _extent.value),
+                    child: child,
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -150,16 +275,56 @@ class _PlaceSheetState extends State<PlaceSheet> {
   }
 }
 
+/// iOS-Scrollen im Blatt: Gummiband unten, oben geklemmt (dort übernimmt das
+/// Blatt die Bewegung) und gesperrt, solange das Blatt nicht ganz oben ist.
+class _SheetScrollPhysics extends BouncingScrollPhysics {
+  const _SheetScrollPhysics({required this.isLocked, super.parent})
+    : super(decelerationRate: ScrollDecelerationRate.fast);
+
+  final bool Function() isLocked;
+
+  @override
+  _SheetScrollPhysics applyTo(ScrollPhysics? ancestor) =>
+      _SheetScrollPhysics(isLocked: isLocked, parent: buildParent(ancestor));
+
+  @override
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) =>
+      isLocked() ? 0 : super.applyPhysicsToUserOffset(position, offset);
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) => isLocked() ? null : super.createBallisticSimulation(position, velocity);
+
+  @override
+  double applyBoundaryConditions(ScrollMetrics position, double value) {
+    if (value < position.minScrollExtent &&
+        position.minScrollExtent <= position.pixels) {
+      return value - position.minScrollExtent; // oben anschlagen
+    }
+    if (value < position.pixels && position.pixels <= position.minScrollExtent) {
+      return value - position.pixels; // schon oben: nicht weiter hinein
+    }
+    return 0;
+  }
+}
+
+/// Bild in der Größe, in der es angezeigt wird (spart Dekodierzeit/Speicher).
+ImageProvider _sheetImage(
+  BuildContext context,
+  String path, {
+  double fraction = 1,
+}) {
+  final width = MediaQuery.sizeOf(context).width * fraction;
+  final pixels = (width * MediaQuery.devicePixelRatioOf(context)).round();
+  return ResizeImage(AssetImage(path), width: pixels, policy: ResizeImagePolicy.fit);
+}
+
 class _Header extends StatelessWidget {
-  const _Header({
-    required this.onClose,
-    required this.onDrag,
-    required this.onRelease,
-  });
+  const _Header({required this.onClose});
 
   final VoidCallback onClose;
-  final ValueChanged<double> onDrag;
-  final ValueChanged<double> onRelease;
 
   @override
   Widget build(BuildContext context) {
@@ -167,24 +332,16 @@ class _Header extends StatelessWidget {
       height: 62,
       child: Stack(
         children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onVerticalDragUpdate: (d) => onDrag(d.delta.dy),
-              onVerticalDragEnd: (d) =>
-                  onRelease(d.velocity.pixelsPerSecond.dy),
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 7),
-                  child: Container(
-                    width: 57,
-                    height: 3.5,
-                    decoration: BoxDecoration(
-                      color: sheetInk.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 7),
+              child: Container(
+                width: 57,
+                height: 3.5,
+                decoration: BoxDecoration(
+                  color: sheetInk.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
@@ -229,7 +386,10 @@ class _Hero extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         child: AspectRatio(
           aspectRatio: 4 / 3,
-          child: Image.asset(image, fit: BoxFit.cover),
+          child: Image(
+            image: _sheetImage(context, image),
+            fit: BoxFit.cover,
+          ),
         ),
       ),
     );
@@ -323,7 +483,7 @@ class _TreeContent extends StatelessWidget {
             ),
           ),
           for (final fact in facts) ...[
-            _FactCard(fact: fact),
+            RepaintBoundary(child: _FactCard(fact: fact)),
             const SizedBox(height: 16),
           ],
         ],
@@ -354,7 +514,10 @@ class _FactCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                       child: SizedBox(
                         height: 110,
-                        child: Image.asset(image, fit: BoxFit.cover),
+                        child: Image(
+                          image: _sheetImage(context, image, fraction: 0.5),
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),

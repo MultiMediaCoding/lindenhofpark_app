@@ -1733,6 +1733,22 @@ function aimLight(v) {                                             // Licht ausr
 // ---------- Schnittstelle zur Flutter-App ----------
 // Flutter ruft ParkApp.* auf und bekommt Ereignisse als JSON über ParkChannel.postMessage:
 //   {t:'ready'} · {t:'tree', id} · {t:'place', title} · {t:'heading', deg} · {t:'outside'}
+// Puffergröße immer an Layout und Pixeldichte der WebView koppeln (nicht nur an
+// window.resize): sonst bleibt der Canvas nach Layoutwechseln im WKWebView zu klein
+// und wird unscharf hochskaliert.
+(function () {
+  var lastW = 0, lastH = 0, lastR = 0;
+  function sync() {
+    var r = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvas.clientWidth !== lastW || canvas.clientHeight !== lastH || r !== lastR) {
+      lastW = canvas.clientWidth; lastH = canvas.clientHeight; lastR = r;
+      renderer.setPixelRatio(r); resize();
+    }
+  }
+  if (window.ResizeObserver) new ResizeObserver(sync).observe(canvas);
+  window.addEventListener('orientationchange', sync);
+  sync();
+})();
 var ParkApp = window.ParkApp = {};
 var paused = false, running = false;
 function post(msg) { try { if (window.ParkChannel) window.ParkChannel.postMessage(JSON.stringify(msg)); } catch (e) {} }
