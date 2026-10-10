@@ -35,6 +35,14 @@ me.visible = false;
 
 // ---------- Auswahl ----------
 var selected = null, pin = $('pin');
+// Symbol im Pin: Laub- oder Nadelbaum (t.n = 1 für Nadelbäume).
+var PIN_LEAF = '<path d="M12 2.5C7.5 6.5 5.5 10 5.5 14a6.5 6.5 0 0 0 13 0c0-4-2-7.5-6.5-11.5z" fill="#fff"/><path d="M12 20.5V10" stroke="#4fae52" stroke-width="1.6" stroke-linecap="round" fill="none"/>';
+var PIN_CONIFER = '<path d="M12 2L6.8 9.5h2.7L5 16h14l-4.5-6.5h2.7z" fill="#fff"/><path d="M11 15.5h2V21h-2z" fill="#fff"/>';
+var pinIcon = (function () {
+  var g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  g.setAttribute('transform', 'translate(9.5 9.5) scale(0.625)');
+  pin.querySelector('svg').appendChild(g); return g;
+})();
 function setColor(t, c) { t.mesh.setColorAt(t.slot, c); t.mesh.instanceColor.needsUpdate = true; }
 var selBase = 1;
 selRing.material.color.set(0x1fae5a); selRing.material.opacity = 1;
@@ -42,6 +50,7 @@ function select(t, fly) {
   if (selected) setColor(selected, selected.col.clone().convertSRGBToLinear());
   selected = t; pin.hidden = !t; selRing.visible = !!t;
   if (!t) return;
+  pinIcon.innerHTML = t.n ? PIN_CONIFER : PIN_LEAF;
   // Goldgelb statt Grün: der gewählte Baum fällt zwischen 476 grünen sofort auf
   setColor(t, new THREE.Color().setHSL(0.13, 0.9, 0.6).convertSRGBToLinear());
   sit(selRing, t.x, t.y, 0.25); selBase = t.dd * 0.5 + 2.2; selRing.scale.setScalar(selBase);

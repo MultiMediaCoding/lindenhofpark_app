@@ -1,68 +1,62 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show SelectableText;
 import 'package:lindenhofpark/Licenses/model/license.dart';
-import 'package:lindenhofpark/Licenses/view/link_button.dart';
-import 'package:lindenhofpark/Licenses/view/box_container.dart';
-import 'package:lindenhofpark/Licenses/view/navigation_title.dart';
-import 'package:lindenhofpark/Licenses/view/subheadline.dart';
-import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
-import 'package:lindenhofpark/resources/resources.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+const _background = Color(0xFFDDDFD8);
+
+/// Eine einzelne Lizenz: große Titelleiste, Quelle oben rechts, Lizenztext in
+/// einer eingerückten Gruppe.
 class LicenseView extends StatelessWidget {
   const LicenseView({super.key, required this.license});
+
   final License license;
+
+  Future<void> _openSource() => launchUrl(
+    Uri.parse(license.source),
+    mode: LaunchMode.externalApplication,
+  );
 
   @override
   Widget build(BuildContext context) {
-    final pageBackground = Color.fromRGBO(221, 223, 216, 1);
-    return Scaffold(
-      backgroundColor: pageBackground,
-      body: SafeArea(
-        bottom: false,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.vertical,
-          child: Column(
-            children: [
-              Row(
+    final textStyle = CupertinoTheme.of(context).textTheme.textStyle
+        .copyWith(fontSize: 14, height: 1.35);
+    return CupertinoPageScaffold(
+      backgroundColor: _background,
+      child: CustomScrollView(
+        slivers: [
+          CupertinoSliverNavigationBar(
+            largeTitle: Text(license.name),
+            backgroundColor: _background,
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size.square(32),
+              onPressed: _openSource,
+              child: const Icon(
+                CupertinoIcons.link,
+                semanticLabel: 'Quelle öffnen',
+              ),
+            ),
+          ),
+          SliverSafeArea(
+            top: false,
+            sliver: SliverToBoxAdapter(
+              child: CupertinoListSection.insetGrouped(
+                header: Text(license.type),
+                footer: Text(license.licenseName),
                 children: [
-                  NavigationBackButton(
-                    color: Color.fromRGBO(59, 105, 57, 1),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SelectableText(
+                      license.licenseText,
+                      style: textStyle,
+                    ),
                   ),
-                  Spacer(),
-                  LinkButton(url: license.source)
                 ],
               ),
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(height: 10),
-                    NavigationTitle(title: license.name),
-                    Subheadline(subheadline: license.type),
-                    SizedBox(height: 40),
-                    Center(
-                      child: BoxContainer(
-                        icon: FontAwesomeIcon.boxSolid,
-                        padding: 10,
-                        size: 60,
-                        borderRadius: 15,
-                        color: Color.fromRGBO(59, 105, 57, 1),
-                      ),
-                    ),
-                    SizedBox(height: 40),
-                    Text(license.licenseName,
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600)),
-                    Text(
-                      license.licenseText,
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    )
-                  ],
-                ),
-              )
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:lindenhofpark/Common/view/symbol_icon.dart';
+import 'package:lindenhofpark/PlaceDetails/view/fact_symbol.dart';
 
 /// Systemschrift wie in Apple Karten (die App-Schrift Inter bleibt sonst).
-const String sheetFont = 'CupertinoSystemText';
+final String sheetFont = hasSfSymbols ? 'CupertinoSystemText' : 'Inter';
 
 /// Breite Variante des Systemschnitts für Titel.
-const String sheetTitleFont = 'CupertinoSystemDisplay';
+final String sheetTitleFont = hasSfSymbols ? 'CupertinoSystemDisplay' : 'Inter';
 
 const Color sheetInk = Color(0xFF1D2420);
 const Color sheetInkSoft = Color(0xFF6A746E);
@@ -31,11 +33,14 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Zeilen aus Beschriftung und Wert, durch feine Linien getrennt.
+/// Eine Zeile der Eckdaten: Symbol, Beschriftung und Wert.
+typedef InfoRow = ({SymbolSpec symbol, String label, String value});
+
+/// Zeilen aus Symbol, Beschriftung und Wert, durch feine Linien getrennt.
 class InfoRows extends StatelessWidget {
   const InfoRows({super.key, required this.rows});
 
-  final List<(String, String)> rows;
+  final List<InfoRow> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -47,30 +52,39 @@ class InfoRows extends StatelessWidget {
               Divider(
                 height: 1,
                 thickness: 0.5,
+                indent: SymbolBadge.size + 12,
                 color: sheetInk.withValues(alpha: 0.18),
               ),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      rows[i].$1,
-                      style: const TextStyle(fontSize: 17, color: sheetInkSoft),
+              child: Row(
+                spacing: 12,
+                children: [
+                  SymbolBadge(symbol: rows[i].symbol),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          rows[i].label,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            color: sheetInkSoft,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          rows[i].value,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w400,
+                            color: sheetInk,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 1),
-                    Text(
-                      rows[i].$2,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w400,
-                        color: sheetInk,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],

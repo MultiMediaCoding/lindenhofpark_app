@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:lindenhofpark/Common/view/symbol_icon.dart';
 import 'package:lindenhofpark/BiologicalFacts/model/biolocial_fact.dart';
 import 'package:lindenhofpark/Common/view/native_glass.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
@@ -159,9 +161,11 @@ class _PlaceSheetState extends State<PlaceSheet>
 
   void _settle(double velocity) {
     final projected = _extent.value + velocity * 0.12;
-    final target = [0.0, _small, _large].reduce(
-      (a, b) => (a - projected).abs() < (b - projected).abs() ? a : b,
-    );
+    final target = [
+      0.0,
+      _small,
+      _large,
+    ].reduce((a, b) => (a - projected).abs() < (b - projected).abs() ? a : b);
     if (target == 0 || !widget.visible) {
       _dismiss();
       return;
@@ -231,7 +235,7 @@ class _PlaceSheetState extends State<PlaceSheet>
             child: NativeGlass(
               radius: 32,
               child: DefaultTextStyle.merge(
-                style: const TextStyle(fontFamily: sheetFont),
+                style: TextStyle(fontFamily: sheetFont),
                 child: Listener(
                   onPointerDown: _onDown,
                   onPointerMove: _onMove,
@@ -330,7 +334,11 @@ ImageProvider _sheetImage(
 }) {
   final width = MediaQuery.sizeOf(context).width * fraction;
   final pixels = (width * MediaQuery.devicePixelRatioOf(context)).round();
-  return ResizeImage(AssetImage(path), width: pixels, policy: ResizeImagePolicy.fit);
+  return ResizeImage(
+    AssetImage(path),
+    width: pixels,
+    policy: ResizeImagePolicy.fit,
+  );
 }
 
 class _Header extends StatelessWidget {
@@ -398,10 +406,7 @@ class _Hero extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         child: AspectRatio(
           aspectRatio: 4 / 3,
-          child: Image(
-            image: _sheetImage(context, image),
-            fit: BoxFit.cover,
-          ),
+          child: Image(image: _sheetImage(context, image), fit: BoxFit.cover),
         ),
       ),
     );
@@ -424,13 +429,13 @@ class _Title extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w400,
               height: 1.1,
               letterSpacing: 0.2,
               fontFamily: sheetTitleFont,
-              fontVariations: [FontVariation('wdth', 125)],
+              fontVariations: const [FontVariation('wdth', 125)],
               color: sheetInk,
             ),
           ),
@@ -466,20 +471,63 @@ class _TreeContent extends StatelessWidget {
         _Title(title: TreeKnowledge.nameOf(tree), subtitle: tree.latinName),
         InfoRows(
           rows: [
-            if (specimen?.age != null)
-              ("Alter", "${specimen!.age} Jahre")
-            else
-              ("Alter", tree.ageStage),
             (
-              "Höhe",
-              "${_meters(specimen?.height.toDouble() ?? tree.height)} m",
+              symbol: symbolSpec(
+                'birthday.cake.fill',
+                FontAwesomeIcons.cakeCandles,
+              ),
+              label: "Alter",
+              value: specimen?.age != null
+                  ? "${specimen!.age} Jahre"
+                  : tree.ageStage,
             ),
-            ("Krone", "${_meters(tree.crownDiameter)} m Durchmesser"),
-            ("Stammumfang", "${_meters(tree.trunkCircumferenceCm / 100)} m"),
-            ("Blätter", leaves ?? ""),
-            if (specimen != null) ("Herkunft", specimen.origin),
-            ("Standort", tree.parcel),
-            ("Baumplakette", tree.id),
+            (
+              symbol: symbolSpec('arrow.up.and.down', FontAwesomeIcons.upDown),
+              label: "Höhe",
+              value: "${_meters(specimen?.height.toDouble() ?? tree.height)} m",
+            ),
+            (
+              symbol: symbolSpec(
+                'arrow.left.and.right',
+                FontAwesomeIcons.leftRight,
+              ),
+              label: "Krone",
+              value: "${_meters(tree.crownDiameter)} m Durchmesser",
+            ),
+            (
+              symbol: symbolSpec('ruler', FontAwesomeIcons.rulerHorizontal),
+              label: "Stammumfang",
+              value: "${_meters(tree.trunkCircumferenceCm / 100)} m",
+            ),
+            (
+              symbol: tree.isNeedle
+                  ? symbolSpec('asterisk', FontAwesomeIcons.asterisk)
+                  : symbolSpec('leaf.fill', FontAwesomeIcons.leaf),
+              label: "Blätter",
+              value: leaves ?? "",
+            ),
+            if (specimen != null)
+              (
+                symbol: symbolSpec(
+                  'globe.europe.africa.fill',
+                  FontAwesomeIcons.earthEurope,
+                ),
+                label: "Herkunft",
+                value: specimen.origin,
+              ),
+            (
+              symbol: symbolSpec(
+                'mappin.and.ellipse',
+                FontAwesomeIcons.locationDot,
+              ),
+              label: "Standort",
+              value: tree.parcel,
+            ),
+            (
+              symbol: symbolSpec('tag.fill', FontAwesomeIcons.tag),
+              label: "Baumplakette",
+              value: tree.id,
+            ),
           ],
         ),
         if (facts.isNotEmpty) ...[

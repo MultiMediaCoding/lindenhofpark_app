@@ -1,14 +1,13 @@
-import 'package:cupertino_native/cupertino_native.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lindenhofpark/Common/view/map_button.dart';
 import 'package:lindenhofpark/Licenses/view/licenses_view.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/view_model/selection.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
 import 'package:lindenhofpark/PlaceDetails/view/place_sheet.dart';
-import 'package:lindenhofpark/PlacesList/view/places_list_view.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -73,29 +72,37 @@ class _MapViewState extends State<MapView> {
 
   void _showOutsidePark() {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("Du bist gerade nicht im Lindenhofpark.")));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Du bist gerade nicht im Lindenhofpark.")),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _viewModel,
-      child: Stack(
-        children: [
-          WebViewWidget(controller: _viewModel.controller),
-          const _MapControls(),
-          if (_displayed != null)
-            PlaceSheet(
-              mapObject: _displayed!,
-              visible: selectedMapObject.value != null,
-              onDismissed: () {
-                if (!mounted) return;
-                selectedMapObject.value = null;
-                setState(() => _displayed = null);
-              },
-            ),
-        ],
+      child: PopScope(
+        // Android-Zurück schließt zuerst das Detailblatt, statt die App zu verlassen.
+        canPop: selectedMapObject.value == null,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) selectedMapObject.value = null;
+        },
+        child: Stack(
+          children: [
+            WebViewWidget(controller: _viewModel.controller),
+            const _MapControls(),
+            if (_displayed != null)
+              PlaceSheet(
+                mapObject: _displayed!,
+                visible: selectedMapObject.value != null,
+                onDismissed: () {
+                  if (!mounted) return;
+                  selectedMapObject.value = null;
+                  setState(() => _displayed = null);
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -116,10 +123,6 @@ class _MapControls extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             spacing: 10,
             children: [
-              CNButton.icon(
-                icon: const CNSymbol('magnifyingglass', size: 17),
-                onPressed: () => _showSearch(context),
-              ),
               // Nur der Kompass hört auf `heading`; die übrigen Knöpfe bleiben
               // unberührt.
               Selector<MapViewModel, double>(
@@ -128,33 +131,43 @@ class _MapControls extends StatelessWidget {
                   angle: heading * 3.141592653589793 / 180,
                   child: child,
                 ),
-                child: CNButton.icon(
-                  icon: const CNSymbol('location.north.fill',
-                      size: 17, color: Color(0xFFE5533D)),
+                child: MapButton(
+                  sfSymbol: 'location.north.fill',
+                  fallbackIcon: Icons.navigation,
+                  label: 'Nach Norden ausrichten',
+                  color: const Color(0xFFE5533D),
                   onPressed: viewModel.resetNorth,
                 ),
               ),
-              CNButton.icon(
-                icon: const CNSymbol('location', size: 17),
+              MapButton(
+                sfSymbol: 'location',
+                fallbackIcon: Icons.my_location,
+                label: 'Mein Standort',
                 onPressed: viewModel.locate,
               ),
               Selector<MapViewModel, bool>(
                 selector: (_, m) => m.is3D,
-                builder: (context, is3D, _) => CNButton.icon(
-                  icon: CNSymbol(is3D ? 'view.2d' : 'view.3d', size: 17),
+                builder: (context, is3D, _) => MapButton(
+                  sfSymbol: is3D ? 'view.2d' : 'view.3d',
+                  fallbackIcon: Icons.view_in_ar,
+                  fallbackText: is3D ? '2D' : '3D',
+                  label: is3D ? 'Zur 2D-Ansicht' : 'Zur 3D-Ansicht',
                   onPressed: viewModel.toggleTilt,
                 ),
               ),
               Selector<MapViewModel, bool>(
                 selector: (_, m) => m.isNight,
-                builder: (context, isNight, _) => CNButton.icon(
-                  icon: CNSymbol(isNight ? 'sun.max.fill' : 'moon.fill',
-                      size: 17),
+                builder: (context, isNight, _) => MapButton(
+                  sfSymbol: isNight ? 'sun.max.fill' : 'moon.fill',
+                  fallbackIcon: isNight ? Icons.light_mode : Icons.dark_mode,
+                  label: isNight ? 'Tagansicht' : 'Nachtansicht',
                   onPressed: viewModel.toggleNight,
                 ),
               ),
-              CNButton.icon(
-                icon: const CNSymbol('info', size: 17),
+              MapButton(
+                sfSymbol: 'info',
+                fallbackIcon: Icons.info_outline,
+                label: 'Quellen und Lizenzen',
                 onPressed: () => _showCredits(context),
               ),
             ],
@@ -164,24 +177,16 @@ class _MapControls extends StatelessWidget {
     );
   }
 
-  void _showSearch(BuildContext context) {
-    showCupertinoSheet<void>(
-      context: context,
-      showDragHandle: true,
-      scrollableBuilder: (context, scrollController) =>
-          PlacesListView(scrollController: scrollController),
-    );
-  }
-
   void _showCredits(BuildContext context) {
     showCupertinoModalPopup<void>(
       context: context,
       builder: (sheetContext) => CupertinoActionSheet(
         title: const Text("Quellen"),
         message: const Text(
-            "Bäume: Baumkataster GTL Lindau, Stand 2023\n"
-            "Wege und Gebäude: © OpenStreetMap-Mitwirkende\n"
-            "Gelände: Bayerische Vermessungsverwaltung, geodaten.bayern.de"),
+          "Bäume: Baumkataster GTL Lindau, Stand 2023\n"
+          "Wege und Gebäude: © OpenStreetMap-Mitwirkende\n"
+          "Gelände: Bayerische Vermessungsverwaltung, geodaten.bayern.de",
+        ),
         actions: [
           CupertinoActionSheetAction(
             onPressed: () {
@@ -194,7 +199,8 @@ class _MapControls extends StatelessWidget {
             onPressed: () {
               Navigator.of(sheetContext).pop();
               Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const LicensesView()));
+                CupertinoPageRoute<void>(builder: (_) => const LicensesView()),
+              );
             },
             child: const Text("Lizenzen"),
           ),

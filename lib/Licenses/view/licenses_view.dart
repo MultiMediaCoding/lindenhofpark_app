@@ -1,52 +1,71 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:lindenhofpark/Licenses/model/license.dart';
 import 'package:lindenhofpark/Licenses/model/licenses.dart';
-import 'package:lindenhofpark/Licenses/view/licenses_item.dart';
-import 'package:lindenhofpark/Licenses/view/navigation_title.dart';
-import 'package:lindenhofpark/PlaceDetails/common/view/back_button.dart';
+import 'package:lindenhofpark/Licenses/view/license_view.dart';
 
+const _background = Color(0xFFDDDFD8);
+const _green = Color(0xFF3B6939);
+
+/// Lizenzen der verwendeten Pakete als Einstellungen-Liste im iOS-Stil:
+/// große Titelleiste, eingerückte Gruppe, Chevron.
 class LicensesView extends StatelessWidget {
   const LicensesView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final pageBackground = Color.fromRGBO(221, 223, 216, 1);
-    return Scaffold(
-      backgroundColor: pageBackground,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            NavigationBackButton(
-              color: Color.fromRGBO(59, 105, 57, 1),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(
-                  top: 20.0, right: 10.0, bottom: 0.0, left: 20.0),
-              child: NavigationTitle(title: "Lizenzen"),
-            ),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(20.0),
-                shrinkWrap: false,
-                itemCount: licenses.length,
-                itemBuilder: (context, index) {
-                  final license = licenses[index];
-                  return Column(
-                    children: [
-                      LicensesItem(
-                        license: license,
-                      ),
-                      Divider(
-                        height: 0.5,
-                      )
-                    ],
-                  );
-                },
+    return CupertinoPageScaffold(
+      backgroundColor: _background,
+      child: CustomScrollView(
+        slivers: [
+          const CupertinoSliverNavigationBar(
+            largeTitle: Text('Lizenzen'),
+            backgroundColor: _background,
+          ),
+          SliverSafeArea(
+            top: false,
+            sliver: SliverToBoxAdapter(
+              child: CupertinoListSection.insetGrouped(
+                footer: const Text(
+                  'Die Lindenhofpark-App nutzt diese Open-Source-Pakete.',
+                ),
+                children: [
+                  for (final license in licenses)
+                    _LicenseTile(license: license),
+                ],
               ),
-            )
-          ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LicenseTile extends StatelessWidget {
+  const _LicenseTile({required this.license});
+
+  final License license;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoListTile.notched(
+      leading: Container(
+        decoration: BoxDecoration(
+          color: _green,
+          borderRadius: BorderRadius.circular(7),
         ),
+        alignment: Alignment.center,
+        child: const Icon(
+          CupertinoIcons.cube_box_fill,
+          size: 18,
+          color: CupertinoColors.white,
+        ),
+      ),
+      title: Text(license.name),
+      subtitle: Text(license.type),
+      trailing: const CupertinoListTileChevron(),
+      onTap: () => Navigator.of(context).push(
+        CupertinoPageRoute<void>(builder: (_) => LicenseView(license: license)),
       ),
     );
   }
