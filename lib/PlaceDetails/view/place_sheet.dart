@@ -17,14 +17,70 @@ String _meters(double value) => value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
 
 /// Detailblatt über der Karte: Liquid-Glass-Sheet mit zwei Rasten (klein /
 /// groß); die Karte dahinter bleibt bedienbar.
-class PlaceSheet extends StatelessWidget {
+class PlaceSheet extends StatefulWidget {
   const PlaceSheet({super.key, required this.mapObject, required this.onClose});
 
   final MapObject mapObject;
   final VoidCallback onClose;
 
+  @override
+  State<PlaceSheet> createState() => _PlaceSheetState();
+}
+
+class _PlaceSheetState extends State<PlaceSheet> {
+  static const double _min = 0.2;
   static const double _small = 0.45;
   static const double _large = 0.93;
+
+  final _controller = DraggableScrollableController();
+  bool _closing = false;
+
+  MapObject get mapObject => widget.mapObject;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _close() {
+    if (_closing) return;
+    _closing = true;
+    widget.onClose();
+  }
+
+  /// Zieher am Griff: das Blatt folgt dem Finger, beim Loslassen rastet es auf
+  /// die nächste Stufe ein oder schließt sich, wenn es tief genug gezogen ist.
+  void _dragHandle(double deltaY, double height) {
+    if (!_controller.isAttached) return;
+    _controller.jumpTo(
+      (_controller.size - deltaY / height).clamp(_min, _large),
+    );
+  }
+
+  void _releaseHandle(double velocityY, double height) {
+    if (!_controller.isAttached) return;
+    final size = _controller.size;
+    final flick = velocityY / height; // Anteile der Höhe pro Sekunde
+    final target = flick.abs() > 0.8
+        ? (flick > 0
+              ? (size > _small ? _small : _min)
+              : (size < _small ? _small : _large))
+        : [
+            _min,
+            _small,
+            _large,
+          ].reduce((a, b) => (a - size).abs() < (b - size).abs() ? a : b);
+    if (target == _min) {
+      _close();
+    } else {
+      _controller.animateTo(
+        target,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,28 +90,51 @@ class PlaceSheet extends StatelessWidget {
       right: 10,
       top: 0,
       bottom: 0,
-      child: DraggableScrollableSheet(
-        key: ValueKey(mapObject),
-        initialChildSize: _small,
-        minChildSize: _small,
-        maxChildSize: _large,
-        snap: true,
-        snapSizes: const [_small, _large],
-        builder: (context, scrollController) => NativeGlass(
-          radius: 32,
-          child: DefaultTextStyle.merge(
-            style: const TextStyle(fontFamily: sheetFont),
-            child: CustomScrollView(
-              controller: scrollController,
-              slivers: [
-                SliverToBoxAdapter(child: _Header(onClose: onClose)),
-                SliverPadding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 24),
-                  sliver: SliverToBoxAdapter(child: _content()),
+      child: LayoutBuilder(
+        builder: (context, constraints) => DraggableScrollableSheet(
+          controller: _controller,
+          initialChildSize: _small,
+          minChildSize: _min,
+          maxChildSize: _large,
+          snap: true,
+          snapSizes: const [_small, _large],
+          builder: (context, scrollController) =>
+              NotificationListener<DraggableScrollableNotification>(
+                onNotification: (n) {
+                  if (n.extent <= _min + 0.001) _close();
+                  return false;
+                },
+                child: NativeGlass(
+                  radius: 32,
+                  child: DefaultTextStyle.merge(
+                    style: const TextStyle(fontFamily: sheetFont),
+                    child: CustomScrollView(
+                      controller: scrollController,
+                      physics: const ClampingScrollPhysics(),
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: _Header(
+                            onClose: widget.onClose,
+                            onDrag: (dy) =>
+                                _dragHandle(dy, constraints.maxHeight),
+                            onRelease: (v) =>
+                                _releaseHandle(v, constraints.maxHeight),
+                          ),
+                        ),
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            0,
+                            16,
+                            bottomInset + 24,
+                          ),
+                          sliver: SliverToBoxAdapter(child: _content()),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ],
-            ),
-          ),
+              ),
         ),
       ),
     );
@@ -72,33 +151,47 @@ class PlaceSheet extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onClose});
+  const _Header({
+    required this.onClose,
+    required this.onDrag,
+    required this.onRelease,
+  });
 
   final VoidCallback onClose;
+  final ValueChanged<double> onDrag;
+  final ValueChanged<double> onRelease;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 42,
+      height: 62,
       child: Stack(
         children: [
-          Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 7),
-              child: Container(
-                width: 57,
-                height: 3.5,
-                decoration: BoxDecoration(
-                  color: sheetInk.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(2),
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onVerticalDragUpdate: (d) => onDrag(d.delta.dy),
+              onVerticalDragEnd: (d) =>
+                  onRelease(d.velocity.pixelsPerSecond.dy),
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Container(
+                    width: 57,
+                    height: 3.5,
+                    decoration: BoxDecoration(
+                      color: sheetInk.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
           Positioned(
             right: 16,
-            top: 10,
+            top: 12,
             child: Semantics(
               label: "Schließen",
               button: true,
@@ -162,16 +255,20 @@ class _Title extends StatelessWidget {
             style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w400,
-              height: 1.15,
+              height: 1.1,
               letterSpacing: 0.2,
               fontFamily: sheetTitleFont,
+              fontVariations: [FontVariation('wdth', 125)],
               color: sheetInk,
             ),
           ),
-          const SizedBox(height: 6),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 15, color: sheetInkSoft),
+            style: const TextStyle(
+              fontSize: 15,
+              height: 1.2,
+              color: sheetInkSoft,
+            ),
           ),
         ],
       ),
@@ -196,23 +293,23 @@ class _TreeContent extends StatelessWidget {
         if (image != null) _Hero(image: image),
         _Title(title: TreeKnowledge.nameOf(tree), subtitle: tree.latinName),
         InfoRows(
-            rows: [
-              if (specimen?.age != null)
-                ("Alter", "${specimen!.age} Jahre")
-              else
-                ("Alter", tree.ageStage),
-              (
-                "Höhe",
-                "${_meters(specimen?.height.toDouble() ?? tree.height)} m",
-              ),
-              ("Krone", "${_meters(tree.crownDiameter)} m Durchmesser"),
-              ("Stammumfang", "${_meters(tree.trunkCircumferenceCm / 100)} m"),
-              ("Blätter", leaves ?? ""),
-              if (specimen != null) ("Herkunft", specimen.origin),
-              ("Standort", tree.parcel),
-              ("Baumplakette", tree.id),
-            ],
-          ),
+          rows: [
+            if (specimen?.age != null)
+              ("Alter", "${specimen!.age} Jahre")
+            else
+              ("Alter", tree.ageStage),
+            (
+              "Höhe",
+              "${_meters(specimen?.height.toDouble() ?? tree.height)} m",
+            ),
+            ("Krone", "${_meters(tree.crownDiameter)} m Durchmesser"),
+            ("Stammumfang", "${_meters(tree.trunkCircumferenceCm / 100)} m"),
+            ("Blätter", leaves ?? ""),
+            if (specimen != null) ("Herkunft", specimen.origin),
+            ("Standort", tree.parcel),
+            ("Baumplakette", tree.id),
+          ],
+        ),
         if (facts.isNotEmpty) ...[
           const Padding(
             padding: EdgeInsets.fromLTRB(7, 14, 7, 12),

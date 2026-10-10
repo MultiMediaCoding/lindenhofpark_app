@@ -76,6 +76,7 @@ class _MapViewState extends State<MapView> {
             builder: (context, selected, _) => selected == null
                 ? const SizedBox.shrink()
                 : PlaceSheet(
+                    key: ValueKey(selected),
                     mapObject: selected,
                     onClose: () => selectedMapObject.value = null,
                   ),
