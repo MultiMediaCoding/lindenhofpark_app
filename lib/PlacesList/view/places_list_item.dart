@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
-import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
+import 'package:lindenhofpark/Map/view_model/selection.dart';
 
 class PlacesListItem extends StatelessWidget {
   const PlacesListItem({super.key, required this.mapObject});
@@ -17,7 +17,11 @@ class PlacesListItem extends StatelessWidget {
         title:
             Text(mapObject.title, style: Theme.of(context).textTheme.bodyLarge),
         subtitle: Text(
-          mapObject.category.categoryName,
+          mapObject.subtitle == null
+              ? mapObject.category.categoryName
+              : "${mapObject.category.categoryName} · ${mapObject.subtitle}",
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: Theme.of(context)
               .textTheme
               .bodySmall
@@ -27,13 +31,14 @@ class PlacesListItem extends StatelessWidget {
             icon: mapObject.category.icon,
             size: 20,
             color: Theme.of(context).colorScheme.primary),
-        onTap: () => openMapObjectInDetailsView(mapObject, context),
+        onTap: () => select(mapObject, context),
       ),
     );
   }
 
-  void openMapObjectInDetailsView(MapObject mapObject, BuildContext context) {
-    Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => PlaceDetailsView(mapObject: mapObject)));
+  /// Schließt die Suche und wählt den Ort auf der Karte aus.
+  void select(MapObject mapObject, BuildContext context) {
+    Navigator.of(context).pop();
+    selectedMapObject.value = mapObject;
   }
 }

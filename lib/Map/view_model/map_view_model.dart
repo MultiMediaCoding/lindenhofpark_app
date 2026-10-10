@@ -1,69 +1,143 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:lindenhofpark/Map/model/map_styler.dart';
-import 'package:lindenhofpark/Map/model/position_locator.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
+import 'package:lindenhofpark/Map/model/map_object_category.dart';
 import 'package:lindenhofpark/Map/model/map_objects.dart';
-import 'package:lindenhofpark/Map/view/map_view.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:lindenhofpark/Map/model/position_locator.dart';
+import 'package:lindenhofpark/PlaceDetails/model/trees/tree_knowledge.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
+/// Steuert die 3D-Karte (`assets/map3d/index.html`, three.js im WebView).
+///
+/// Flutter ruft `ParkApp.*` im Seitenskript auf; die Seite meldet über den
+/// Kanal `ParkChannel` JSON-Ereignisse zurück:
+/// `ready`, `tree {id}`, `place {title}`, `deselect`, `heading {deg}`, `outside`.
 class MapViewModel extends ChangeNotifier {
-  MapController controller = MapController();
+  MapViewModel({this.onTreeTapped, this.onPlaceTapped, this.onDeselected, this.onOutsidePark}) {
+    controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFFF3F2EC))
+      ..addJavaScriptChannel('ParkChannel', onMessageReceived: _onMessage)
+      ..loadFlutterAsset('assets/map3d/index.html');
+    _startLocation();
+  }
 
-  final lindenhofparkCenterPosition = const LatLng(47.557868, 9.661412);
-  final lindenhofparkBegin = const LatLng(47.563619, 9.651471);
-  final lindenhofparkEnd = const LatLng(47.552413, 9.676677);
+  late final WebViewController controller;
 
-  // Map Style
-  Style? style;
-  Object? error;
+  final ValueChanged<String>? onTreeTapped;
+  final ValueChanged<String>? onPlaceTapped;
+  final VoidCallback? onDeselected;
+  final VoidCallback? onOutsidePark;
 
-  List<Marker> markers = [];
+  /// Drehung der Karte in Grad (0 = Norden oben), für den Kompass.
+  double heading = 0;
+  bool is3D = true;
+  bool isNight = false;
 
-  final positionLocator = PositionLocator();
-  static const LocationSettings locationSettings = LocationSettings(
-    accuracy: LocationAccuracy.high,
-    distanceFilter: 5,
-  );
-  final positionStream =
-      Geolocator.getPositionStream(locationSettings: locationSettings);
+  bool _ready = false;
+  Position? _position;
+  StreamSubscription<Position>? _positionSubscription;
 
-  Future _initStyle() async {
+  void _onMessage(JavaScriptMessage message) {
+    final event = jsonDecode(message.message) as Map<String, dynamic>;
+    switch (event['t']) {
+      case 'ready':
+        _ready = true;
+        _run('ParkApp.setPlaces(${jsonEncode(_places())})');
+        _run('ParkApp.setStars(${jsonEncode(curatedTreeIds.values.toList())})');
+        if (_position != null) _sendPosition(_position!);
+      case 'tree':
+        onTreeTapped?.call(event['id'] as String);
+      case 'place':
+        onPlaceTapped?.call(event['title'] as String);
+      case 'deselect':
+        onDeselected?.call();
+      case 'heading':
+        heading = (event['deg'] as num).toDouble();
+        notifyListeners();
+      case 'outside':
+        onOutsidePark?.call();
+    }
+  }
+
+  List<Map<String, Object>> _places() => [
+        for (final o in mapObjects)
+          if (o.category.category == MapObjectCategoryType.historicalPlace)
+            {
+              'title': o.title,
+              'lat': o.location.latitude,
+              'lon': o.location.longitude,
+            },
+      ];
+
+  Future<void> _startLocation() async {
     try {
-      style = await MapStyler().readStyle();
-    } catch (e, stack) {
-      // ignore: avoid_print
-      print(e);
-      // ignore: avoid_print
-      print(stack);
-      error = e;
+      _position = await PositionLocator().determinePosition();
+      _sendPosition(_position!);
+      _positionSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 3,
+        ),
+      ).listen((position) {
+        _position = position;
+        _sendPosition(position);
+      }, onError: (_) {});
+    } catch (_) {
+      // Ohne Standort bleibt die Karte voll nutzbar, nur ohne blauen Punkt.
     }
+  }
+
+  void _sendPosition(Position p) {
+    if (_ready) _run('ParkApp.setLocation(${p.latitude}, ${p.longitude})');
+  }
+
+  void _run(String js) => controller.runJavaScript(js);
+
+  void locate() => _run('ParkApp.locate()');
+
+  void resetNorth() => _run('ParkApp.resetNorth()');
+
+  void toggleTilt() {
+    is3D = !is3D;
+    _run('ParkApp.toggleTilt()');
     notifyListeners();
   }
 
-  void _initMarkers() {
-    for (MapObject mapObject in mapObjects) {
-      final marker = Marker(
-        width: 40,
-        height: 40,
-        point: mapObject.location,
-        child: MapPin(mapObject: mapObject),
-      );
-
-      markers.add(marker);
-    }
+  void toggleNight() {
+    isNight = !isNight;
+    _run('ParkApp.setNight($isNight)');
     notifyListeners();
   }
 
-  void determinePosition() {
-    positionLocator.determinePosition();
+  void selectTree(String id) => _run('ParkApp.selectTree(${jsonEncode(id)})');
+
+  void selectPlace(String title) =>
+      _run('ParkApp.selectPlace(${jsonEncode(title)})');
+
+  /// Hebt die Hervorhebung auf, wenn ein Detailblatt geschlossen wurde.
+  void clearSelection() => _run('ParkApp.clearSelection()');
+
+  MapObject? mapObjectForTree(String id) {
+    for (final o in treeMapObjects()) {
+      if (o.treeId == id) return o;
+    }
+    return null;
   }
 
-  MapViewModel() {
-    _initMarkers();
-    _initStyle();
-    determinePosition();
+  MapObject? mapObjectForPlace(String title) {
+    for (final o in mapObjects) {
+      if (o.title == title) return o;
+    }
+    return null;
+  }
+
+  @override
+  void dispose() {
+    _positionSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -2,7 +2,10 @@ import 'package:lindenhofpark/Map/model/map_object.dart';
 import 'package:lindenhofpark/Map/model/map_object_categories.dart';
 import 'package:lindenhofpark/Map/model/map_object_category.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:lindenhofpark/PlaceDetails/model/trees/tree_catalog.dart';
+import 'package:lindenhofpark/PlaceDetails/model/trees/tree_knowledge.dart';
 
+/// Orte mit handgepflegten Details. Bäume kommen aus dem [treeCatalog].
 final List<MapObject> mapObjects = [
   // NOTE: Historical Places
   MapObject(
@@ -65,28 +68,23 @@ final List<MapObject> mapObjects = [
       mapObjectCategories
           .getObjectByCategory(MapObjectCategoryType.historicalPlace),
       const LatLng(47.55728735540322, 9.662609679084067)),
-
-  // NOTE: Trees
-  MapObject(
-      "Schwarzkiefer",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557116, 9.658103)),
-  MapObject(
-      "Rotbuche",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.557861, 9.658639)),
-  // TODO: Roteiche
-  MapObject(
-      "Weihrauchzeder",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.55731, 9.660326)),
-  // TODO: Bergahron
-  MapObject(
-      "Winterlinde",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.55685039, 9.66155328)),
-  MapObject(
-      "Urweltmammutbaum",
-      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree),
-      const LatLng(47.55746132, 9.66226002)),
 ];
+
+/// Orte und alle Bäume des Katasters.
+List<MapObject> get allMapObjects => [...mapObjects, ...treeMapObjects()];
+
+List<MapObject>? _treeMapObjects;
+
+List<MapObject> treeMapObjects() => _treeMapObjects ??= _buildTreeMapObjects();
+
+List<MapObject> _buildTreeMapObjects() {
+  final category =
+      mapObjectCategories.getObjectByCategory(MapObjectCategoryType.tree);
+  return [
+    for (final tree in treeCatalog.trees)
+      MapObject(TreeKnowledge.nameOf(tree), category, tree.location,
+          treeId: tree.id,
+          subtitle: "${tree.parcel} · Nr. ${tree.id}",
+          keywords: tree.latinName),
+  ];
+}

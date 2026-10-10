@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lindenhofpark/Home/view/home_view.dart';
+import 'package:lindenhofpark/PlaceDetails/model/trees/tree_catalog.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+  await loadTreeCatalog();
   runApp(const MyApp());
 }
 

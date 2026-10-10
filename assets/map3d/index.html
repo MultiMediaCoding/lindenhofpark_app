@@ -1,0 +1,1875 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Lindenhofpark 3D</title>
+<style>
+/* Layout: one full-screen map; controls and the tree card float above it like a maps app. */
+:root {
+  --base: #f3f2ec;        /* map ground outside the park */
+  --ink: #1d2420;         /* primary text */
+  --ink-soft: #5d6a62;    /* secondary text */
+  --panel: rgba(255, 255, 252, 0.9);
+  --panel-line: rgba(29, 36, 32, 0.1);
+  --leaf: #4fae52;        /* accent: marker and active states */
+  --leaf-soft: #e4f4dc;
+  --dot: #1a7cf9;         /* location blue */
+  --water-ink: #3f93c4;
+  --label: #55655a;
+  --label-halo: rgba(255, 255, 250, 0.92);
+  --ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --round: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+html, body { height: 100%; }
+body { background: var(--base); color: var(--ink); font-family: var(--ui); font-size: 15px; overflow: hidden; }
+#app { position: relative; height: 100%; width: 100%; overflow: hidden; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; outline: none; }
+#scene.grabbing { cursor: grabbing; }
+#scene.pointing { cursor: pointer; }
+
+
+
+/* Easter Egg: Lindenhof Open */
+
+.maplabel { position: absolute; left: 0; top: 0; pointer-events: none; white-space: nowrap; font: 600 12.5px/1.1 var(--round); color: var(--label); paint-order: stroke fill; -webkit-text-stroke: 3.5px var(--label-halo); letter-spacing: 0.01em; will-change: transform; }
+.maplabel.water { color: var(--water-ink); font-style: italic; font-weight: 500; font-size: 15px; -webkit-text-stroke: 3.5px rgba(214, 240, 253, 0.9); }
+.maplabel.poi { color: #a2573f; }
+.maplabel.peak { color: #55708f; font-size: 11.5px; font-weight: 600; }
+#app.night .maplabel.peak { color: #c9d8f2; }
+.maplabel.area { color: #3f8a43; }
+.maplabel.road { color: #6d777c; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+#app.night .maplabel { color: #e8ecf8; -webkit-text-stroke: 3.5px rgba(20, 28, 54, 0.85); }
+#app.night .maplabel.poi { color: #ffd9a3; }
+#app.night .maplabel.area { color: #a9e6c0; }
+#app.night .maplabel.water { color: #9fc4f2; }
+#app.night #credit { color: rgba(220, 228, 245, 0.7); }
+
+#pin { position: absolute; left: 0; top: 0; width: 34px; height: 42px; margin: -42px 0 0 -17px; pointer-events: none; will-change: transform; filter: drop-shadow(0 3px 5px rgba(30, 60, 30, 0.3)); }
+
+
+[hidden] { display: none !important; }
+html, body { margin: 0; overscroll-behavior: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.place-pin { position: absolute; left: 0; top: 0; width: 34px; height: 34px; margin: -17px 0 0 -17px; padding: 0; border-radius: 50%; border: 2.5px solid #fff; background: #a2573f; box-shadow: 0 3px 8px rgba(40,50,40,0.3); display: grid; place-items: center; cursor: pointer; will-change: transform; }
+.place-pin svg { width: 16px; height: 16px; fill: #fff; }
+.star-pin { position: absolute; left: 0; top: 0; width: 26px; height: 26px; margin: -13px 0 0 -13px; padding: 0; border-radius: 50%; border: 2px solid #fff; background: #f2b134; box-shadow: 0 2px 6px rgba(40,50,40,0.35); display: grid; place-items: center; pointer-events: auto; will-change: transform; }
+.star-pin svg { width: 14px; height: 14px; fill: #fff; }
+#places { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.place-pin { pointer-events: auto; }
+#fail { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--ink-soft); }
+</style></head>
+<body>
+<div id="app">
+  <canvas id="scene" tabindex="-1" aria-label="3D-Karte des Lindenhofparks mit allen Bäumen aus dem Kataster"></canvas>
+  <div id="labels" aria-hidden="true"></div>
+  <div id="places"></div>
+  <div id="pin" hidden aria-hidden="true"><svg viewBox="0 0 34 42" width="34" height="42">
+    <path d="M17 41c-1.2 0-2-0.9-2.9-2.6C11.5 33.6 2 29.3 2 17 2 8.7 8.7 2 17 2s15 6.7 15 15c0 12.3-9.5 16.6-12.1 21.4C19 40.1 18.2 41 17 41z" fill="#4fae52" stroke="#fff" stroke-width="2.5"/>
+  </svg></div>
+  <div id="fail" hidden>Die 3D-Ansicht braucht WebGL, das auf diesem Gerät nicht verfügbar ist.</div>
+</div>
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<script src="data.js"></script>
+<script>
+(function () {
+'use strict';
+
+var $ = function (id) { return document.getElementById(id); };
+if (!window.THREE) { $('fail').hidden = false; throw new Error('three.js fehlt'); }
+
+// ---------- helpers ----------
+function C(hex) { return new THREE.Color(hex).convertSRGBToLinear(); }
+function rng(seed) { var a = seed >>> 0; return function () { a |= 0; a = a + 0x6D2B79F5 | 0; var t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function smooth(a, b, v) { var t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+function de(n, digits) { return n.toLocaleString('de-DE', { minimumFractionDigits: digits || 0, maximumFractionDigits: digits || 0 }); }
+function hash(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function inPoly(x, y, p) { var c = false; for (var i = 0, j = p.length - 1; i < p.length; j = i++) { if ((p[i][1] > y) !== (p[j][1] > y) && x < (p[j][0] - p[i][0]) * (y - p[i][1]) / (p[j][1] - p[i][1]) + p[i][0]) c = !c; } return c; }
+
+// ---------- data ----------
+var SP = DATA.species;
+var TREES = DATA.trees.map(function (r, i) { var s = SP[r[1]]; return { i: i, id: r[0], de: s[0], la: s[1], g: s[1].split(' ')[0], f: s[2], n: s[3], x: r[2], y: r[3], h: r[4], d: r[5], k: r[6], u: r[7], a: DATA.age[r[8]], p: DATA.parz[r[9]] }; });
+var FEAT = DATA.feat, DEM = DATA.dem;
+
+var X0 = DEM.x0, Y1 = DEM.y1, ST = DEM.st, NX = DEM.nx, NY = DEM.ny, X1 = X0 + ST * (NX - 1), Y0 = Y1 - ST * (NY - 1);
+var VEX = 2.0;                                   // Überhöhung: macht Hänge und Terrassen sichtbar
+var HG = new Float32Array(NX * NY);
+for (var hi = 0; hi < NX * NY; hi++) HG[hi] = parseInt(DEM.s.substr(hi * 2, 2), 36) / 10;
+function Hraw(x, y) {
+  var fx = clamp((x - X0) / ST, 0, NX - 1.001), fy = clamp((Y1 - y) / ST, 0, NY - 1.001), i = fx | 0, j = fy | 0, a = fx - i, b = fy - j, o = j * NX + i;
+  return HG[o] * (1 - a) * (1 - b) + HG[o + 1] * a * (1 - b) + HG[o + NX] * (1 - a) * b + HG[o + NX + 1] * a * b;
+}
+function H(x, y) { return Hraw(x, y) * VEX; }  // Höhe in der Szene
+var SHORE = FEAT.filter(function (f) { return f.k === 'shore'; })[0].p;
+var LAKE = SHORE.concat([[SHORE[SHORE.length - 1][0], -900], [SHORE[0][0], -900]]);
+var PARK = FEAT.filter(function (f) { return f.id === 51263359; })[0].p;
+function inLake(x, y) { return inPoly(x, y, LAKE); }
+
+// ---------- palette (Apple-Karten-artig: hell, weich, wenig Kontrast) ----------
+var PAL = {
+  base: '#f3f2ec', lawn: '#b0e877', lawnEdge: '#c5ef97', scrub: '#a2e06c', path: '#f8faf1', pathEdge: '#d9e9c2', parking: '#e9e8e1', gravel: '#f1efe2',
+  shore: '#ece9db', road: '#a4acb0', roadEdge: '#e7eaea', service: '#d9dcd8', water: '#8fd9fb', pier: '#e6e6dd', trunk: '#b19b88',
+  blob: ['#98dc7a', '#90d674', '#a0e07e', '#94d870'], linde: '#a6e27c', buche: '#8fd473', eiche: '#9ad472',
+  dunkel: '#84cc74', kegel: '#86de74', saeule: '#8cd97c', blau: '#8fd8ac', house: '#f5f3ed', hedge: '#7cc868', bed: '#93d66e'
+};
+
+// ---------- renderer / scene ----------
+var canvas = $('scene'), renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, powerPreference: 'high-performance' }); }
+catch (e) { $('fail').hidden = false; throw e; }
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+var scene = new THREE.Scene();
+scene.background = C(PAL.base);
+scene.fog = new THREE.Fog(C(PAL.base), 520, 1700);
+var camera = new THREE.PerspectiveCamera(32, 1, 3, 4000);
+var hemi = new THREE.HemisphereLight(0xffffff, C('#e6f2d6'), 0.9); scene.add(hemi);
+var sun = new THREE.DirectionalLight(C('#fff7ea'), 0.3);
+var SUNV = new THREE.Vector3(-0.679, 0.559, 0.476); sun.position.copy(SUNV);   // Nachmittagssonne im Südwesten (Azimut 235°, 34° hoch), Schatten fallen nach Nordosten //          // Licht von Nordwesten, Schatten fallen nach Südosten
+scene.add(sun);
+var LDIR = SUNV.clone().normalize();
+function W(x, y, up) { return new THREE.Vector3(x, H(x, y) + (up || 0), -y); }   // x = Ost, z = -Nord
+
+// ---------- tree dimensions (Kronendurchmesser echt, Höhe leicht gestaucht) ----------
+TREES.forEach(function (t) {
+  var Hh = Math.max(t.h || 4, 2), D = Math.max(t.d || 2, 1.2);
+  var Hd = 1.3 * Math.pow(Hh, 0.8), trunk, ch, Dd = D;
+  if (t.f === 'k') { trunk = clamp(0.07 * Hd, 0.5, 1.8); ch = Hd - trunk; Dd = Math.min(D, 0.72 * ch); }
+  else if (t.f === 's') { trunk = clamp(0.04 * Hd, 0.3, 0.9); ch = Hd - trunk; Dd = Math.min(D, 0.5 * ch); }
+  else {
+    trunk = clamp((t.k || 2) * Hd / Hh, Math.max(1.3, 0.2 * Hd), 0.34 * Hd); ch = Hd - trunk;
+    if (ch > 1.5 * D) { ch = 1.5 * D; trunk = Math.min(Hd - ch, 0.5 * ch); }
+    if (ch < 0.8 * D) { Dd = ch / 0.8; }
+  }
+  t.trunk = trunk; t.ch = ch; t.dd = Dd; t.top = trunk + ch; t.gy = H(t.x, t.y);
+  t.tr = clamp((t.u || 60) / (2 * Math.PI) / 100, 0.14, 1.3);
+  t.seed = hash(t.id + t.la);
+});
+
+// ---------- materials ----------
+var matCache = {}, lmCache = {};
+function M(col) { return matCache[col] || (matCache[col] = new THREE.MeshLambertMaterial({ color: C(col) })); }
+// Materialien der Wahrzeichen: doppelseitig, nachts leicht angestrahlt
+function ML(col) { return lmCache[col] || (lmCache[col] = new THREE.MeshLambertMaterial({ color: C(col), side: THREE.DoubleSide })); }
+// Nacht: gemeinsamer Schalter für alle Shader; Wahrzeichen werden wie von Bodenstrahlern warm von unten angestrahlt (Wände stark, Dächer kaum, nach oben abklingend)
+var NIGHTU = { value: 0 };
+var NGLSL = 'uniform float uNight;\nvec3 nightGrade(vec3 d) { float g = smoothstep(0.3, 0.6, min(d.r, min(d.g, d.b))); return d * mix(vec3(0.062, 0.165, 0.40), vec3(0.052, 0.076, 0.168), g); }\n';
+function uplight(sh) {
+  sh.uniforms.uNight = NIGHTU;
+  sh.vertexShader = 'attribute vec2 nl;\nuniform float uNight;\nvarying float vUp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vUp = uNight * nl.y * (1.0 - 0.82 * abs(normal.y)) * (0.2 + 0.8 * exp(-max(nl.x, 0.0) / 6.5));');
+  sh.fragmentShader = 'varying float vUp;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += mix(diffuseColor.rgb, vec3(0.85), 0.3 * smoothstep(0.2, 0.6, max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b)))) * vec3(1.0, 0.8, 0.56) * vUp * 0.95;');
+}
+function MLV(col) {
+  var k = 'v' + col, m = lmCache[k]; if (m) return m;
+  m = lmCache[k] = new THREE.MeshLambertMaterial({ color: C(col), side: THREE.DoubleSide, vertexColors: true });
+  if (!(m.color.g > m.color.r * 1.25 && m.color.g > m.color.b)) m.onBeforeCompile = uplight;      // Grün (Hecken, Rasen) wird nicht angestrahlt
+  return m;
+}
+var glassMat = new THREE.MeshLambertMaterial({ color: C('#b7c9d2'), side: THREE.DoubleSide });
+var BUILD = FEAT.filter(function (f) { return f.k === 'building'; });
+function area(p) { var a = 0; for (var i = 0, j = p.length - 1; i < p.length; j = i++) a += (p[j][0] + p[i][0]) * (p[j][1] - p[i][1]); return a / 2; }
+function footprintRange(p) { var mn = 1e9, mx = -1e9, cx = 0, cy = 0; p.forEach(function (q) { var h = H(q[0], q[1]); mn = Math.min(mn, h); mx = Math.max(mx, h); cx += q[0]; cy += q[1]; }); var hc = H(cx / p.length, cy / p.length); return { min: Math.min(mn, hc), max: Math.max(mx, hc) }; }
+function bHeight(f) { if (f.bt === 'boathouse') return 6; if (f.bt === 'garage') return 3; if (f.lv) return 3.1 * f.lv + 1.2; var a = Math.abs(area(f.p)); return a < 60 ? 3.8 : a < 220 ? 6.4 : 7.6; }
+var LM_H = { villa: 10.5, schweizerhaus: 12, gaertnerhaus: 8, dienstbotenhaus: 6, seeschloessle: 11, ruine: 3.6, bad: 3.3, badhaus: 7, badrund: 3.6, schuppen: 3.5 };
+var BAD = DATA.bad;
+var POND = (FEAT.filter(function (f) { return f.k === 'pond'; })[0] || { p: [] }).p;
+// Mauerkante am Bad: Abstand, Fußpunkt und Seite (> 0 = Landseite) zum nächsten Abschnitt
+function cliffAt(x, y) {
+  var L = BAD.cliff, best = { d: 1e9 };
+  for (var i = 0; i < L.length - 1; i++) {
+    var a = L[i], b = L[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], t = clamp(((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy), 0, 1), px = a[0] + t * dx, py = a[1] + t * dy, d = Math.hypot(x - px, y - py);
+    if (d < best.d) { var l = Math.hypot(dx, dy); best = { d: d, x: px, y: py, s: dx * (y - a[1]) - dy * (x - a[0]), nx: -dy / l, ny: dx / l }; }
+  }
+  return best;
+}
+// Bäume dicht an der Mauer stehen auf der Mauerkrone, nicht im Hang des Geländenetzes
+TREES.forEach(function (t) { if (t.x > -200 || t.x < -340 || t.y > -55) return; var c = cliffAt(t.x, t.y); if (c.d < 3.6 && c.s >= 0) t.gy = Math.max(t.gy, H(c.x + c.nx * 4, c.y + c.ny * 4)); });
+function extrude(p, y0, y1, mat, bevel) {
+  var pts = p.slice(0, (p[0][0] === p[p.length - 1][0] && p[0][1] === p[p.length - 1][1]) ? -1 : undefined);
+  if (area(pts) < 0) pts = pts.slice().reverse();
+  var shp = new THREE.Shape(pts.map(function (q) { return new THREE.Vector2(q[0], q[1]); }));
+  var b = bevel || 0, geo = new THREE.ExtrudeGeometry(shp, { depth: y1 - y0 - b, bevelEnabled: b > 0, bevelThickness: b, bevelSize: b * 0.9, bevelOffset: -b * 0.9, bevelSegments: 3, curveSegments: 1 });
+  var m = new THREE.Mesh(geo, mat); m.rotation.x = -Math.PI / 2; m.position.y = y0; return m;
+}
+BUILD.forEach(function (f) { if (f.r) return; var r = footprintRange(f.p); scene.add(extrude(f.p, r.min - 1, r.max + bHeight(f), M(PAL.house), 0.45)); });
+
+// ---------- Baukasten für die Wahrzeichen ----------
+// Koordinaten je Bauwerk: u = entlang der Hauptfassade (Ost), v = Tiefe (Nord), y = Höhe. Alles wird je Farbe zu einem Netz verschmolzen.
+function Kit() {
+  var buckets = {}, m4 = new THREE.Matrix4(), n3 = new THREE.Matrix3(), e = new THREE.Euler(), q = new THREE.Quaternion(), vp = new THREE.Vector3(), vs = new THREE.Vector3(1, 1, 1), tmp = new THREE.Vector3();
+  var K = { glow: 1 };                                    // glow: wie stark die danach gebauten Teile nachts angestrahlt werden
+  function bucket(col) { var b = buckets[col] || (buckets[col] = { p: [], n: [], g: [], gl: K.glow }); while (b.g.length < b.p.length / 3) b.g.push(b.gl); b.gl = K.glow; return b; }
+  K.add = function (geo, col, x, y, z, ry, rx, rz) {
+    var g = geo.index ? geo.toNonIndexed() : geo, P = g.attributes.position, N = g.attributes.normal, b = bucket(col);
+    e.set(rx || 0, ry || 0, rz || 0, 'YXZ'); q.setFromEuler(e); vp.set(x, y, z); m4.compose(vp, q, vs); n3.getNormalMatrix(m4);
+    for (var i = 0; i < P.count; i++) { tmp.fromBufferAttribute(P, i).applyMatrix4(m4); b.p.push(tmp.x, tmp.y, tmp.z); tmp.fromBufferAttribute(N, i).applyMatrix3(n3).normalize(); b.n.push(tmp.x, tmp.y, tmp.z); }
+  };
+  K.box = function (u0, u1, v0, v1, y0, y1, col) { K.add(new THREE.BoxGeometry(Math.abs(u1 - u0), Math.abs(y1 - y0), Math.abs(v1 - v0)), col, (u0 + u1) / 2, (y0 + y1) / 2, -(v0 + v1) / 2); };
+  K.cyl = function (u, v, rb, rt, y0, y1, col, seg) { K.add(new THREE.CylinderGeometry(rt, rb, y1 - y0, seg || 14), col, u, (y0 + y1) / 2, -v); };
+  K.hcyl = function (u, v, r, y0, y1, col, open, dir) { K.add(new THREE.CylinderGeometry(r, r, y1 - y0, 30, 1, !!open, -Math.PI / 2, Math.PI), col, u, (y0 + y1) / 2, -v, dir || 0); };
+  K.ring = function (u, v, r, y0, y1, col) { K.add(new THREE.CylinderGeometry(r, r, y1 - y0, 36, 1, true), col, u, (y0 + y1) / 2, -v); };
+  K.sphere = function (u, v, y, r, col, sy) { var g = new THREE.SphereGeometry(r, 14, 10); if (sy) g.scale(1, sy, 1); K.add(g, col, u, y, -v); };
+  // Säule mit Basis, Schaft und Kapitell
+  K.column = function (u, v, r, y0, y1, col, cap) {
+    K.box(u - r * 1.4, u + r * 1.4, v - r * 1.4, v + r * 1.4, y0, y0 + r * 0.6, col); K.cyl(u, v, r * 1.25, r * 1.1, y0 + r * 0.6, y0 + r * 1.0, col, 16);
+    K.cyl(u, v, r * 1.02, r * 0.86, y0 + r * 1.0, y1 - r * 1.5, col, 16);
+    K.cyl(u, v, r * 0.9, r * 1.4, y1 - r * 1.5, y1 - r * 0.5, cap || col, 12); K.box(u - r * 1.55, u + r * 1.55, v - r * 1.55, v + r * 1.55, y1 - r * 0.5, y1, cap || col);
+  };
+  // freie Dreiecke und Vierecke in (u, y, v)
+  K.tri = function (a, b, c, col) {
+    var bk = bucket(col), ax = a[0], ay = a[1], az = -a[2], bx = b[0], by = b[1], bz = -b[2], cx = c[0], cy = c[1], cz = -c[2];
+    var nx = (by - ay) * (cz - az) - (bz - az) * (cy - ay), ny = (bz - az) * (cx - ax) - (bx - ax) * (cz - az), nz = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax), l = Math.hypot(nx, ny, nz) || 1;
+    if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; bk.p.push(ax, ay, az, cx, cy, cz, bx, by, bz); }   // Normale nach oben und Umlaufsinn dazu passend, damit Dächer von oben als Vorderseite beleuchtet werden
+    else bk.p.push(ax, ay, az, bx, by, bz, cx, cy, cz);
+    for (var i = 0; i < 3; i++) bk.n.push(nx / l, ny / l, nz / l);
+  };
+  K.quad = function (a, b, c, d, col) { K.tri(a, b, c, col); K.tri(a, c, d, col); };
+  // senkrechtes Dreieck (Giebel) mit Normale nach außen
+  K.gableTri = function (a, b, c, col, out) {
+    var bk = bucket(col), gx = (b[1] - a[1]) * (-c[2] + a[2]) - (-b[2] + a[2]) * (c[1] - a[1]), gz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    (gx * out[0] + gz * -out[1] < 0 ? [a, c, b] : [a, b, c]).forEach(function (p) { bk.p.push(p[0], p[1], -p[2]); bk.n.push(out[0], 0.25, -out[1]); });
+  };
+  K.hip = function (u0, u1, v0, v1, y, h, along, ridge, col) {
+    var uc = (u0 + u1) / 2, vc = (v0 + v1) / 2, A = [u0, y, v0], B = [u1, y, v0], Cc = [u1, y, v1], D = [u0, y, v1], r1, r2;
+    if (along === 'u') { r1 = [uc - ridge / 2, y + h, vc]; r2 = [uc + ridge / 2, y + h, vc]; K.quad(A, B, r2, r1, col); K.quad(Cc, D, r1, r2, col); K.tri(D, A, r1, col); K.tri(B, Cc, r2, col); }
+    else { r1 = [uc, y + h, vc - ridge / 2]; r2 = [uc, y + h, vc + ridge / 2]; K.tri(A, B, r1, col); K.tri(Cc, D, r2, col); K.quad(B, Cc, r2, r1, col); K.quad(D, A, r1, r2, col); }
+  };
+  // Satteldach über den Wänden u0..u1 / v0..v1 mit Überstand; gibt die Firsthöhe zurück
+  K.gable = function (u0, u1, v0, v1, y, pitch, along, over, col, wallCol, thick) {
+    var t = Math.tan(pitch), th = thick || 0.22, h, a0, a1, b0, b1, mid;
+    if (along === 'u') {
+      h = (v1 - v0) / 2 * t; mid = (v0 + v1) / 2; a0 = u0 - over; a1 = u1 + over; b0 = v0 - over; b1 = v1 + over; var ye = y - over * t;
+      K.quad([a0, ye + th, b0], [a1, ye + th, b0], [a1, y + h + th, mid], [a0, y + h + th, mid], col); K.quad([a1, ye + th, b1], [a0, ye + th, b1], [a0, y + h + th, mid], [a1, y + h + th, mid], col);
+      K.quad([a0, ye, b0], [a1, ye, b0], [a1, ye + th, b0], [a0, ye + th, b0], col); K.quad([a0, ye, b1], [a1, ye, b1], [a1, ye + th, b1], [a0, ye + th, b1], col);
+      [a0, a1].forEach(function (a) { K.quad([a, ye, b0], [a, ye + th, b0], [a, y + h + th, mid], [a, y + h, mid], col); K.quad([a, ye, b1], [a, ye + th, b1], [a, y + h + th, mid], [a, y + h, mid], col); });
+      if (wallCol) { K.gableTri([u0, y, v0], [u0, y, v1], [u0, y + h, mid], wallCol, [-1, 0]); K.gableTri([u1, y, v0], [u1, y, v1], [u1, y + h, mid], wallCol, [1, 0]); }
+    } else {
+      h = (u1 - u0) / 2 * t; mid = (u0 + u1) / 2; a0 = u0 - over; a1 = u1 + over; b0 = v0 - over; b1 = v1 + over; var ye2 = y - over * t;
+      K.quad([a0, ye2 + th, b0], [a0, ye2 + th, b1], [mid, y + h + th, b1], [mid, y + h + th, b0], col); K.quad([a1, ye2 + th, b1], [a1, ye2 + th, b0], [mid, y + h + th, b0], [mid, y + h + th, b1], col);
+      K.quad([a0, ye2, b0], [a0, ye2, b1], [a0, ye2 + th, b1], [a0, ye2 + th, b0], col); K.quad([a1, ye2, b0], [a1, ye2, b1], [a1, ye2 + th, b1], [a1, ye2 + th, b0], col);
+      [b0, b1].forEach(function (b) { K.quad([a0, ye2, b], [a0, ye2 + th, b], [mid, y + h + th, b], [mid, y + h, b], col); K.quad([a1, ye2, b], [a1, ye2 + th, b], [mid, y + h + th, b], [mid, y + h, b], col); });
+      if (wallCol) { K.gableTri([u0, y, v0], [u1, y, v0], [mid, y + h, v0], wallCol, [0, -1]); K.gableTri([u0, y, v1], [u1, y, v1], [mid, y + h, v1], wallCol, [0, 1]); }
+    }
+    return y + h;
+  };
+  // flache Platte an einer Fassade: face s|n|e|w, a0..a1 entlang der Wand, plane = Lage der Wand, t = Vorsprung nach außen
+  K.slab = function (face, a0, a1, y0, y1, plane, t, col) {
+    if (face === 's') K.box(a0, a1, plane - t, plane + 0.03, y0, y1, col); else if (face === 'n') K.box(a0, a1, plane - 0.03, plane + t, y0, y1, col);
+    else if (face === 'e') K.box(plane - 0.03, plane + t, a0, a1, y0, y1, col); else K.box(plane - t, plane + 0.03, a0, a1, y0, y1, col);
+  };
+  // Fenster: Rahmen aus vier Leisten, Scheibe liegt tiefer; optional Läden, Sims und Verdachung
+  K.win = function (face, a, plane, y, w, h, o) {
+    o = o || {}; var f = o.f === undefined ? 0.2 : o.f, fc = o.frame || '#ffffff', t = o.t || 0.14;
+    K.slab(face, a - w / 2, a + w / 2, y, y + h, plane, 0.035, o.fill || 'GLASS');
+    if (f > 0) { K.slab(face, a - w / 2 - f, a - w / 2, y - f, y + h + f, plane, t, fc); K.slab(face, a + w / 2, a + w / 2 + f, y - f, y + h + f, plane, t, fc); K.slab(face, a - w / 2, a + w / 2, y + h, y + h + f, plane, t, fc); K.slab(face, a - w / 2, a + w / 2, y - f, y, plane, t, fc); }
+    if (o.bars) { K.slab(face, a - 0.04, a + 0.04, y, y + h, plane, 0.07, fc); K.slab(face, a - w / 2, a + w / 2, y + h * 0.62, y + h * 0.62 + 0.07, plane, 0.07, fc); }
+    if (o.shut) { var sw = o.sw || w * 0.48; K.slab(face, a - w / 2 - f - sw, a - w / 2 - f - 0.03, y - 0.02, y + h + 0.02, plane, 0.08, o.shut); K.slab(face, a + w / 2 + f + 0.03, a + w / 2 + f + sw, y - 0.02, y + h + 0.02, plane, 0.08, o.shut); }
+    if (o.sill) K.slab(face, a - w / 2 - f - 0.12, a + w / 2 + f + 0.12, y - f - 0.14, y - f, plane, t + 0.12, o.sill);
+    if (o.head) K.slab(face, a - w / 2 - f - 0.18, a + w / 2 + f + 0.18, y + h + f, y + h + f + 0.2, plane, t + 0.16, o.head);
+  };
+  K.stairs = function (uc, w, vTop, yTop, n, sh, sd, col, flare) { for (var k = 1; k <= n; k++) K.box(uc - w / 2 - (flare || 0) * k, uc + w / 2 + (flare || 0) * k, vTop - k * sd, vTop, yTop - 9, yTop - k * sh, col); };
+  // Geländer oder Balustrade entlang einer Achse
+  // Geländer: Pfosten, Handlauf und entweder geschlossene Brüstung oder feine Gitterstäbe (Eisen)
+  K.railU = function (u0, u1, v, y, h, postCol, panelCol, every, pw) {
+    var n = Math.max(1, Math.round((u1 - u0) / (every || 3))), d = (u1 - u0) / n, i, u; pw = pw || 0.36;
+    for (i = 0; i <= n; i++) { u = u0 + i * d; if (postCol) K.box(u - pw / 2, u + pw / 2, v - pw / 2, v + pw / 2, y, y + h + 0.16, postCol); }
+    if (panelCol === IRON) { for (u = u0 + 0.15; u < u1 - 0.05; u += 0.3) K.box(u - 0.028, u + 0.028, v - 0.028, v + 0.028, y + 0.08, y + h, IRON); K.box(u0, u1, v - 0.04, v + 0.04, y + 0.08, y + 0.14, IRON); K.box(u0, u1, v - 0.06, v + 0.06, y + h - 0.02, y + h + 0.06, postCol || IRON); }
+    else { K.box(u0, u1, v - 0.05, v + 0.05, y + 0.12, y + h - 0.06, panelCol); K.box(u0, u1, v - 0.09, v + 0.09, y + h - 0.06, y + h + 0.04, postCol || panelCol); }
+  };
+  K.railV = function (v0, v1, u, y, h, postCol, panelCol, every, pw) {
+    var n = Math.max(1, Math.round((v1 - v0) / (every || 3))), d = (v1 - v0) / n, i, v; pw = pw || 0.36;
+    for (i = 0; i <= n; i++) { v = v0 + i * d; if (postCol) K.box(u - pw / 2, u + pw / 2, v - pw / 2, v + pw / 2, y, y + h + 0.16, postCol); }
+    if (panelCol === IRON) { for (v = v0 + 0.15; v < v1 - 0.05; v += 0.3) K.box(u - 0.028, u + 0.028, v - 0.028, v + 0.028, y + 0.08, y + h, IRON); K.box(u - 0.04, u + 0.04, v0, v1, y + 0.08, y + 0.14, IRON); K.box(u - 0.06, u + 0.06, v0, v1, y + h - 0.02, y + h + 0.06, postCol || IRON); }
+    else { K.box(u - 0.05, u + 0.05, v0, v1, y + 0.12, y + h - 0.06, panelCol); K.box(u - 0.09, u + 0.09, v0, v1, y + h - 0.06, y + h + 0.04, postCol || panelCol); }
+  };
+  // Wandfeld an beliebiger Kante: Mitte (x, y) in Parkkoordinaten, Richtung dir, Breite w, Höhe y0..y1, t = Vorsprung
+  K.panel = function (x, y, dir, w, y0, y1, t, col) { K.add(new THREE.BoxGeometry(w, y1 - y0, t), col, x, (y0 + y1) / 2, -y, dir); };
+  // senkrechte Wandfläche zwischen zwei Grundrisspunkten, out = Außenrichtung im Grundriss
+  K.vquad = function (p, q, y0p, y1p, y0q, y1q, col, out) { var bk = bucket(col), fw = ((q[1] - p[1]) * out[0] - (q[0] - p[0]) * out[1]) > 0; (fw ? [[p, y0p], [q, y0q], [q, y1q], [p, y0p], [q, y1q], [p, y1p]] : [[q, y0q], [p, y0p], [p, y1p], [q, y0q], [p, y1p], [q, y1q]]).forEach(function (v) { bk.p.push(v[0][0], v[1], -v[0][1]); bk.n.push(out[0], 0, -out[1]); }); };
+  // Prisma über beliebigem Grundriss (Parkkoordinaten) mit Deckfläche
+  K.prism = function (pts, y0, y1, col, capCol) {
+    var a = 0, i, n = pts.length, p, q; for (i = 0; i < n; i++) { p = pts[i]; q = pts[(i + 1) % n]; a += p[0] * q[1] - q[0] * p[1]; }
+    var s = a > 0 ? 1 : -1;
+    for (i = 0; i < n; i++) { p = pts[i]; q = pts[(i + 1) % n]; var dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy) || 1; K.vquad(p, q, y0, y1, y0, y1, col, [dy / l * s, -dx / l * s]); }
+    THREE.ShapeUtils.triangulateShape(pts.map(function (v) { return new THREE.Vector2(v[0], v[1]); }), []).forEach(function (t) { K.tri([pts[t[0]][0], y1, pts[t[0]][1]], [pts[t[1]][0], y1, pts[t[1]][1]], [pts[t[2]][0], y1, pts[t[2]][1]], capCol || col); });
+  };
+  // Grundriss um d nach außen versetzen (Gehrung)
+  // freies Viereck in (u, y, v) mit vorgegebener Außennormale; Stab zwischen zwei Punkten
+  K.face = function (P, col, n) {
+    var bk = bucket(col), N = [n[0], n[1], -n[2]], l = Math.hypot(N[0], N[1], N[2]) || 1, a = P[0], b = P[1], c = P[2];
+    var gx = (b[1] - a[1]) * (-c[2] + a[2]) - (-b[2] + a[2]) * (c[1] - a[1]), gy = (-b[2] + a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (-c[2] + a[2]), gz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+    ((gx * N[0] + gy * N[1] + gz * N[2]) < 0 ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3]).forEach(function (i) { var p = P[i]; bk.p.push(p[0], p[1], -p[2]); bk.n.push(N[0] / l, N[1] / l, N[2] / l); });
+  };
+  K.rod = function (a, b, r, col, seg) { var dx = b[0] - a[0], dy = b[1] - a[1], dz = -(b[2] - a[2]), L = Math.hypot(dx, dy, dz) || 1; K.add(new THREE.CylinderGeometry(r, r, L, seg || 6), col, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, -(a[2] + b[2]) / 2, Math.atan2(dx, dz), Math.acos(clamp(dy / L, -1, 1))); };
+  K.offset = function (pts, d) {
+    var a = 0, i, n = pts.length; for (i = 0; i < n; i++) a += pts[i][0] * pts[(i + 1) % n][1] - pts[(i + 1) % n][0] * pts[i][1];
+    var s = a > 0 ? 1 : -1, out = [];
+    for (i = 0; i < n; i++) {
+      var p0 = pts[(i + n - 1) % n], p1 = pts[i], p2 = pts[(i + 1) % n], l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]) || 1, l2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) || 1;
+      var n1 = [(p1[1] - p0[1]) / l1 * s, -(p1[0] - p0[0]) / l1 * s], n2 = [(p2[1] - p1[1]) / l2 * s, -(p2[0] - p1[0]) / l2 * s], k = Math.max(0.35, 1 + n1[0] * n2[0] + n1[1] * n2[1]);
+      out.push([p1[0] + (n1[0] + n2[0]) / k * d, p1[1] + (n1[1] + n2[1]) / k * d]);
+    }
+    return out;
+  };
+  // Rohrgeländer entlang einer Linie in Parkkoordinaten; yb0/yb1 = Fußhöhe an beiden Enden, o.pickets = Stäbe statt Mittelholm
+  K.rail = function (x0, y0, x1, y1, yb0, yb1, h, col, o) {
+    o = o || {}; var dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy); if (len < 0.08) return;
+    var dir = Math.atan2(dy, dx), sl = Math.atan2(yb1 - yb0, len), L = Math.hypot(len, yb1 - yb0), th = o.th || 0.07, ym = (yb0 + yb1) / 2, xm = (x0 + x1) / 2, zm = -(y0 + y1) / 2;
+    K.add(new THREE.BoxGeometry(L, th, th), col, xm, ym + h, zm, dir, 0, sl);
+    if (!o.pickets) K.add(new THREE.BoxGeometry(L, th * 0.8, th * 0.8), col, xm, ym + h * 0.5, zm, dir, 0, sl); else K.add(new THREE.BoxGeometry(L, th * 0.8, th * 0.8), col, xm, ym + 0.1, zm, dir, 0, sl);
+    var step = o.pickets ? 0.3 : (o.every || 1.9), n = Math.max(1, Math.round(len / step)), k;
+    for (k = 0; k <= n; k++) { var t = k / n, pw = o.pickets ? th * 0.7 : th * 1.15; if (o.pickets && (k === 0 || k === n)) pw = th * 1.4; K.add(new THREE.BoxGeometry(pw, h, pw), col, x0 + dx * t, yb0 + (yb1 - yb0) * t + h / 2, -(y0 + dy * t), dir); }
+  };
+  K.railLine = function (pts, yb, h, col, o) { for (var i = 0; i < pts.length - 1; i++) K.rail(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], yb, yb, h, col, o); };
+  // Zusammenfügen; die Flächen bekommen eine eingebrannte Richtungsschattierung (Ost dunkler, Süd heller, Sockel dunkler), damit Kanten lesbar bleiben
+  K.place = function (x, y, baseY, angle) {
+    var g = new THREE.Group(), ca = Math.cos(angle || 0), sa = Math.sin(angle || 0);
+    Object.keys(buckets).forEach(function (col) {
+      var b = buckets[col], geo = new THREE.BufferGeometry(), glass = col === 'GLASS'; geo.setAttribute('position', new THREE.Float32BufferAttribute(b.p, 3)); geo.setAttribute('normal', new THREE.Float32BufferAttribute(b.n, 3));
+      if (!glass) {
+        var cc = new Float32Array(b.p.length);
+        for (var i = 0; i < b.p.length; i += 3) {
+          var nx = b.n[i], ny = b.n[i + 1], nz = b.n[i + 2], wx = nx * ca + nz * sa, wz = -nx * sa + nz * ca, f = 1 - 0.115 * Math.max(0, wx) + 0.03 * Math.max(0, wz) - 0.035 * Math.max(0, -wz);
+          if (Math.abs(ny) < 0.5) f *= 0.93 + 0.07 * clamp(b.p[i + 1] / 3.5, 0, 1); else if (ny < 0) f *= 0.86;
+          cc[i] = cc[i + 1] = cc[i + 2] = f;
+        }
+        geo.setAttribute('color', new THREE.BufferAttribute(cc, 3));
+        var nv = b.p.length / 3, nl = new Float32Array(nv * 2); while (b.g.length < nv) b.g.push(b.gl);
+        for (var j = 0; j < nv; j++) { var lx = b.p[j * 3], lz = b.p[j * 3 + 2]; nl[j * 2] = b.p[j * 3 + 1] + baseY - H(lx * ca + lz * sa + x, -(-lx * sa + lz * ca - y)); nl[j * 2 + 1] = b.g[j]; }
+        geo.setAttribute('nl', new THREE.BufferAttribute(nl, 2));
+      }
+      g.add(new THREE.Mesh(geo, glass ? glassMat : MLV(col)));
+    });
+    g.position.set(x, baseY, -y); g.rotation.y = angle || 0; scene.add(g); return g;
+  };
+  return K;
+}
+// Begehbare Innenräume für den POV-Modus: je Bauwerk Rechtecke im Gebäuderaster [u0, u1, v0, v1, Bodenhöhe über der Basis, Gefälle je Meter in v, abweichende Augenhöhe]
+var ZONES = [], POLYZ = [];      // POLYZ: Flächen beliebiger Form {p: Vieleck | c, r: Kreis | f: Funktion, y: Höhe, over: nur betretbar, wenn man schon etwa so hoch steht}
+function floorAt(x, y, fy) {
+  for (var j = 0; j < POLYZ.length; j++) {
+    var q = POLYZ[j], hy = q.f ? q.f(x, y) : q.c ? (Math.hypot(x - q.c[0], y - q.c[1]) < q.r ? q.y : null) : (inPoly(x, y, q.p) ? q.y : null);
+    if (hy === null || (q.over && !(fy >= hy - 1.2))) continue; floorAt.eye = 0; return hy;
+  }
+  for (var i = 0; i < ZONES.length; i++) {
+    var z = ZONES[i], dx = x - z.x, dy = y - z.y; if (Math.abs(dx) > 45 || Math.abs(dy) > 45) continue;
+    var c = Math.cos(z.ang), s = Math.sin(z.ang), u = dx * c + dy * s, v = -dx * s + dy * c;
+    for (var k = 0; k < z.r.length; k++) { var r = z.r[k]; if (u >= r[0] && u <= r[1] && v >= r[2] && v <= r[3]) { floorAt.eye = r[6] || 0; return z.base + r[4] + (r[5] ? (v - r[3]) * r[5] : 0); } }
+  }
+  return null;
+}
+function maxH(pts) { var m = -1e9; pts.forEach(function (p) { m = Math.max(m, H(p[0], p[1])); }); return m; }
+function local(cx, cy, ang) { var c = Math.cos(ang), s = Math.sin(ang); return function (u, v) { return [cx + u * c - v * s, cy + u * s + v * c]; }; }
+
+// ================= Wahrzeichen =================
+var IRON = '#636a6c';
+
+// ---------- 1 Villa Lindenhof (1840, F. J. Kreuter): Mittelbau mit halbrundem Säulenportikus, verglaste Veranden, Flügel, Terrasse mit Freitreppe ----------
+(function () {
+  var K = Kit(), WALL = '#f2d8a2', TERRA = '#d98a63', STONE = '#c2c5b6', STONE2 = '#dcdbcf', EAVE = '#8a6d58', ROOF = '#c8beb0', SHUT = '#fbf8ef', GRAVEL = '#ece8da', FLOW = '#f0a0a0', HEDGE = '#7cc868';
+  var CX = -34.7, CY = 58.2, ANG = 0.0311, L = local(CX, CY, ANG), base = H(CX, CY) + 0.15;
+  var wopt = { frame: STONE, f: 0.22, bars: true }, wshut = { frame: STONE, f: 0.24, fill: SHUT, head: STONE2, sill: STONE2 };
+  // Terrasse mit Balustrade
+  K.box(-30, 29, -15.5, 2, -14, -0.02, STONE); K.box(-29.7, 28.7, -15.2, 2, -0.02, 0.05, GRAVEL);
+  K.railU(-30, -6.6, -15.5, 0.05, 0.95, STONE2, IRON, 3.4, 0.44); K.railU(6.6, 29, -15.5, 0.05, 0.95, STONE2, IRON, 3.4, 0.44);
+  K.railV(-15.5, -1, -30, 0.05, 0.95, STONE2, IRON, 3.4, 0.44); K.railV(-15.5, 1.6, 29, 0.05, 0.95, STONE2, IRON, 3.4, 0.44);
+  var foot = L(0, -26), drop = clamp(base - H(foot[0], foot[1]), 1.4, 8), n = clamp(Math.ceil(drop / 0.36), 4, 20);
+  K.stairs(0, 12.6, -15.5, 0.05, n, 0.36, 0.62, '#dddcd1', 0);
+  [-1, 1].forEach(function (s) { K.box(s * 6.3 - 0.45, s * 6.3 + 0.45, -15.5 - n * 0.31, -15.3, -14, 0.7, STONE2); K.box(s * 6.3 - 0.45, s * 6.3 + 0.45, -15.5 - n * 0.62 - 0.5, -15.5 - n * 0.31, -14, 0.7 - n * 0.18, STONE2); K.sphere(s * 6.3, -15.5 - n * 0.62 - 0.1, 0.95 - n * 0.18, 0.34, STONE2); });
+  // Parterres mit Buchsschnörkeln und Blumeninseln
+  [[-24.6, -6.2], [22.4, -7.4]].forEach(function (c) {
+    K.cyl(c[0], c[1], 1.25, 1.15, 0.05, 0.32, FLOW, 18); K.cyl(c[0], c[1], 0.6, 0.5, 0.32, 0.5, '#f6c66f', 12);
+    K.add(new THREE.TorusGeometry(2.5, 0.2, 6, 26), HEDGE, c[0], 0.18, -c[1], 0, Math.PI / 2);
+    [[-3.6, -3.4], [3.6, -3.4], [-3.6, 3.4], [3.6, 3.4]].forEach(function (d) { K.add(new THREE.TorusGeometry(1.1, 0.18, 6, 16, Math.PI * 1.5), HEDGE, c[0] + d[0], 0.17, -(c[1] + d[1]), Math.atan2(d[1], d[0]), Math.PI / 2); K.cyl(c[0] + d[0], c[1] + d[1], 0.5, 0.45, 0.05, 0.28, '#f3b6c9', 10); });
+  });
+  // --- Mittelbau ---
+  K.box(-10.93, 10.93, -9.38, 9.38, 0, 0.9, STONE); K.box(-10.8, 10.8, -9.25, 9.25, 0.9, 9.6, WALL);
+  K.box(-10.9, 10.9, -9.35, 9.35, 5.4, 5.7, STONE2); K.box(-10.9, 10.9, -9.35, 9.35, 9.6, 10.45, TERRA);
+  for (var fu = -9.6; fu <= 9.7; fu += 1.6) K.slab('s', fu - 0.2, fu + 0.2, 9.83, 10.23, -9.35, 0.05, '#93705a');
+  [-1, 1].forEach(function (s) { K.slab('s', s * 10.55 - 0.25, s * 10.55 + 0.25, 0.9, 9.6, -9.25, 0.09, TERRA); });
+  K.box(-12.0, 12.0, -10.45, 10.45, 10.45, 10.7, EAVE);
+  for (var bu = -11.4; bu <= 11.5; bu += 1.14) { K.box(bu - 0.09, bu + 0.09, -10.3, -9.35, 10.05, 10.45, EAVE); }
+  for (var bv = -8.6; bv <= 3.5; bv += 1.14) { K.box(-11.85, -10.9, bv - 0.09, bv + 0.09, 10.05, 10.45, EAVE); K.box(10.9, 11.85, bv - 0.09, bv + 0.09, 10.05, 10.45, EAVE); }
+  K.hip(-12, 12, -10.45, 10.45, 10.7, 1.9, 'u', 5, ROOF);
+  K.box(-3.3, -0.3, -1.4, 1.4, 11.7, 12.7, '#dcd9ce'); K.hip(-3.5, -0.1, -1.6, 1.6, 12.7, 0.85, 'u', 0.4, 'GLASS'); K.hip(0.5, 4.7, -1.2, 1.2, 11.75, 0.95, 'u', 2.6, 'GLASS');
+  // Portikus
+  K.hcyl(0, -9.25, 5.5, -0.1, 0.28, STONE2); K.hcyl(0, -9.25, 4.9, 0.28, 0.56, STONE2); K.hcyl(0, -9.25, 3.0, 0.56, 5.2, SHUT);
+  [-58, -20, 20, 58].forEach(function (d) { var a = d * Math.PI / 180; K.add(new THREE.BoxGeometry(0.16, 4.5, 0.16), STONE, 3.04 * Math.sin(a), 2.85, 9.25 + 3.04 * Math.cos(a), a); });
+  [-39, 0, 39].forEach(function (d) { var a = d * Math.PI / 180; K.add(new THREE.BoxGeometry(1.2, 3.3, 0.08), '#e9e5d8', 3.03 * Math.sin(a), 2.5, 9.25 + 3.03 * Math.cos(a), a); });
+  [-62, -22, 22, 62].forEach(function (d) { var a = d * Math.PI / 180; K.column(4.2 * Math.sin(a), -9.25 - 4.2 * Math.cos(a), 0.33, 0.56, 5.15, STONE, STONE2); });
+  K.hcyl(0, -9.25, 4.75, 5.15, 5.6, STONE); K.hcyl(0, -9.25, 4.97, 5.6, 5.8, STONE2); K.hcyl(0, -9.25, 4.86, 5.86, 5.92, IRON, true); K.hcyl(0, -9.25, 4.9, 6.62, 6.72, IRON, true);
+  for (var pa = -88; pa <= 88; pa += 4) { var par = pa * Math.PI / 180; K.box(4.86 * Math.sin(par) - 0.03, 4.86 * Math.sin(par) + 0.03, -9.25 - 4.86 * Math.cos(par) - 0.03, -9.25 - 4.86 * Math.cos(par) + 0.03, 5.8, 6.66, IRON); }
+  // Loggia im Obergeschoss
+  K.slab('s', -5.6, 5.6, 5.95, 9.25, -9.25, 0.03, '#8d938b');
+  [-3.7, 0, 3.7].forEach(function (u) { K.win('s', u, -9.25, 6.05, 1.5, 2.9, { frame: '#f4f1e6', f: 0.12, t: 0.07, bars: true }); });
+  [-5.6, -1.85, 1.85, 5.6].forEach(function (u) { K.box(u - 0.28, u + 0.28, -9.78, -9.25, 5.8, 9.2, STONE); K.box(u - 0.36, u + 0.36, -9.84, -9.25, 8.95, 9.2, STONE2); });
+  K.box(-6.0, 6.0, -9.84, -9.25, 9.2, 9.6, STONE2);
+  [-8.15, 8.15].forEach(function (u) { K.win('s', u, -9.25, 1.5, 1.5, 3.0, wshut); K.win('s', u, -9.25, 6.5, 1.4, 2.5, { frame: STONE, f: 0.24, head: STONE2, bars: true }); K.slab('s', u - 1.2, u + 1.2, 5.92, 6.16, -9.25, 0.7, STONE2); K.railU(u - 1.15, u + 1.15, -9.93, 6.08, 0.85, null, IRON); });
+  [-5.4, -1.2].forEach(function (v) { K.win('w', v, -10.8, 6.5, 1.3, 2.4, wopt); K.win('e', v, 10.8, 6.5, 1.3, 2.4, wopt); });
+  // --- Nordtrakt mit Eingang ---
+  K.box(-16.8, 15.4, 4.4, 11.7, 0, 0.9, STONE); K.box(-16.7, 15.3, 4.5, 11.6, 0.9, 9.6, WALL); K.box(-16.8, 15.4, 4.4, 11.7, 9.6, 10.45, TERRA); K.box(-16.8, 15.4, 4.4, 11.7, 5.4, 5.7, STONE2);
+  K.box(-17.8, 16.4, 3.4, 12.7, 10.45, 10.7, EAVE); K.hip(-17.8, 16.4, 3.4, 12.7, 10.7, 1.9, 'u', 26, ROOF);
+  for (var nu = -14.4; nu <= 13.2; nu += 3.4) { if (Math.abs(nu + 0.8) > 1) K.win('n', nu, 11.6, 1.7, 1.2, 2.5, wopt); K.win('n', nu, 11.6, 6.4, 1.2, 2.3, wopt); }
+  K.win('n', -0.8, 11.6, 0.95, 1.8, 3.1, { fill: '#7b5a44', frame: STONE, f: 0.3, head: STONE2 }); K.box(-3.0, 1.4, 11.6, 13.5, 3.95, 4.2, STONE2); K.column(-2.6, 13.1, 0.2, 0.3, 3.95, STONE, STONE2); K.column(1.0, 13.1, 0.2, 0.3, 3.95, STONE, STONE2); K.box(-3.2, 1.6, 11.6, 13.8, 0, 0.3, STONE2);
+  [6.2, 9.4].forEach(function (v) { K.win('w', v, -16.7, 1.7, 1.2, 2.5, wopt); K.win('w', v, -16.7, 6.4, 1.2, 2.3, wopt); K.win('e', v, 15.3, 6.4, 1.2, 2.3, wopt); });
+  // --- Westflügel ---
+  K.box(-29.4, -20.2, 0.1, 10.2, 0, 0.8, STONE); K.box(-29.3, -20.3, 0.2, 10.1, 0.8, 7.6, WALL); K.box(-29.4, -20.2, 0.1, 10.2, 7.6, 8.2, TERRA);
+  K.box(-30.2, -19.4, -0.7, 11.0, 8.2, 8.42, EAVE); K.hip(-30.2, -19.4, -0.7, 11.0, 8.42, 2.3, 'v', 3.4, ROOF);
+  K.box(-25.7, -23.9, 0.9, 2.6, 8.9, 10.0, WALL); K.hip(-25.9, -23.7, 0.7, 2.8, 10.0, 0.7, 'v', 1.2, ROOF); K.win('s', -24.8, 0.9, 9.1, 0.9, 0.7, { frame: STONE, f: 0.1 });
+  K.box(-20.3, -16.6, 1.5, 9.5, 0, 7.2, WALL); K.box(-20.4, -16.5, 1.4, 9.6, 7.2, 7.4, EAVE); K.box(-20.3, -16.6, 1.5, 9.5, 7.4, 7.5, ROOF);
+  [-27.2, -22.6].forEach(function (u) { K.win('s', u, 0.2, 1.5, 1.3, 2.6, { frame: STONE, f: 0.22, shut: SHUT, head: STONE2 }); K.win('s', u, 0.2, 5.0, 1.2, 1.9, { frame: STONE, f: 0.2, shut: SHUT }); K.win('n', u, 10.1, 1.5, 1.2, 2.4, wopt); K.win('n', u, 10.1, 5.0, 1.2, 1.9, wopt); });
+  [2.6, 5.2, 7.8].forEach(function (v) { K.win('w', v, -29.3, 1.5, 1.2, 2.5, { frame: STONE, f: 0.22, shut: SHUT }); K.win('w', v, -29.3, 5.0, 1.2, 1.9, { frame: STONE, f: 0.2, shut: SHUT }); });
+  // --- verglaste Veranden mit Balkon darüber ---
+  function veranda(u0, u1, v0, v1, open) {
+    K.box(u0, u1, v0, v1, 0, 0.6, STONE); K.box(u0 + 0.2, u1 - 0.2, v0 + 0.2, v1, 0.6, 4.3, 'GLASS'); K.box(u0 - 0.15, u1 + 0.15, v0 - 0.15, v1, 4.3, 4.9, STONE2);
+    var nu2 = Math.max(2, Math.round((u1 - u0) / 2.8)), nv = Math.max(2, Math.round((v1 - v0) / 2.8)), i;
+    for (i = 0; i <= nu2; i++) { var u = u0 + (u1 - u0) * i / nu2; K.box(u - 0.24, u + 0.24, v0 - 0.08, v0 + 0.4, 0.6, 4.3, STONE); K.box(u - 0.3, u + 0.3, v0 - 0.12, v0 + 0.4, 4.05, 4.3, STONE2); }
+    for (i = 1; i <= nv; i++) { var v = v0 + (v1 - v0) * i / nv, ue = open === 'w' ? u0 : u1; K.box(ue - 0.24, ue + 0.24, v - 0.24, v + 0.24, 0.6, 4.3, STONE); }
+    for (i = 0; i < nu2; i++) { var um = u0 + (u1 - u0) * (i + 0.5) / nu2; K.box(um - 0.04, um + 0.04, v0 + 0.08, v0 + 0.16, 0.6, 4.3, '#e9e6da'); K.box(u0 + 0.2, u1 - 0.2, v0 + 0.08, v0 + 0.16, 3.2, 3.3, '#e9e6da'); }
+    K.railU(u0 - 0.1, u1 + 0.1, v0 - 0.1, 4.9, 0.9, null, IRON); K.railV(v0 - 0.1, v1, open === 'w' ? u0 - 0.1 : u1 + 0.1, 4.9, 0.9, null, IRON);
+  }
+  veranda(-19.0, -10.8, -8.8, 0.6, 'w'); veranda(10.8, 16.9, -4.6, 2.0, 'e');
+  // --- Ostflügel mit Giebelvorbau ---
+  K.box(10.7, 28.0, 1.9, 12.4, 0, 0.8, STONE); K.box(10.8, 27.9, 2.0, 12.3, 0.8, 5.6, WALL); K.box(10.7, 28.0, 1.9, 12.4, 5.6, 6.2, TERRA);
+  K.gable(10.8, 27.9, 2.0, 12.3, 6.2, 0.35, 'u', 0.95, ROOF, WALL, 0.24);
+  K.box(17.2, 23.0, 0.0, 2.0, 0, 0.7, STONE2); K.stairs(20.1, 4.6, 0.0, 0.7, 2, 0.33, 0.42, STONE2);
+  K.column(18.15, 0.45, 0.3, 0.7, 4.9, STONE, STONE2); K.column(22.05, 0.45, 0.3, 0.7, 4.9, STONE, STONE2); K.box(17.25, 17.75, 0.25, 2.0, 0.7, 4.9, WALL); K.box(22.45, 22.95, 0.25, 2.0, 0.7, 4.9, WALL);
+  K.box(17.15, 23.05, -0.05, 2.0, 4.9, 5.5, STONE2); K.gable(17.2, 23.0, 0.0, 2.0, 5.5, 0.42, 'v', 0.3, ROOF, WALL, 0.2);
+  K.win('s', 20.1, 2.0, 0.9, 1.6, 3.2, { fill: SHUT, frame: STONE, f: 0.25 });
+  [[23.7, 27.4, 1.4, 5.0]].forEach(function (p) { K.slab('s', p[0], p[1], p[2], p[2] + 0.12, 2.0, 0.05, TERRA); K.slab('s', p[0], p[1], p[3] - 0.12, p[3], 2.0, 0.05, TERRA); K.slab('s', p[0], p[0] + 0.12, p[2], p[3], 2.0, 0.05, TERRA); K.slab('s', p[1] - 0.12, p[1], p[2], p[3], 2.0, 0.05, TERRA); });
+  K.add(new THREE.CylinderGeometry(0.5, 0.5, 0.12, 20), STONE2, 25.55, 3.3, -1.95, 0, Math.PI / 2);
+  [4.6, 7.2, 9.8].forEach(function (v) { K.win('e', v, 27.9, 1.5, 1.3, 2.8, wshut); });
+  [13.5, 17.5, 21.5, 25.5].forEach(function (u) { K.win('n', u, 12.3, 1.5, 1.2, 2.6, wopt); });
+  // --- Innenräume (im POV-Modus begehbar): Halle mit Teppich, Sitzgruppe, Flügel, Kamin und Kronleuchter; Speisezimmer im Ostflügel, Bibliothek im Westflügel ---
+  K.glow = 0.35; var F = 0.9, FW = 0.8, RUG = '#9c3f3c', RUG2 = '#e8d6a8', RUG3 = '#8a3338', WD = '#7a5a44', WD2 = '#a07a58', GOLD = '#c9a24e', DARK = '#2b2b2f', VELV = '#4f7a6a';
+  function rug(a0, a1, b0, b1, y) { K.box(a0, a1, b0, b1, y, y + 0.03, RUG); K.box(a0 + 0.5, a1 - 0.5, b0 + 0.5, b1 - 0.5, y + 0.03, y + 0.045, RUG2); K.box(a0 + 0.9, a1 - 0.9, b0 + 0.9, b1 - 0.9, y + 0.045, y + 0.06, RUG3); }
+  function plant(a, b, y, hgt) { K.cyl(a, b, 0.24, 0.3, y, y + 0.5, '#c98a62', 12); K.cyl(a, b, 0.04, 0.04, y + 0.5, y + hgt, '#7a6a52', 6); K.sphere(a, b, y + hgt + 0.3, 0.62, '#6fbd6a', 0.9); K.sphere(a + 0.3, b - 0.2, y + hgt - 0.1, 0.42, '#84cc78', 0.9); }
+  function picture(face, a, plane, y, w, h, col) { K.slab(face, a - w / 2 - 0.1, a + w / 2 + 0.1, y - 0.1, y + h + 0.1, plane, -0.07, GOLD); K.slab(face, a - w / 2, a + w / 2, y, y + h, plane, -0.09, col); }
+  K.box(-20.3, -16.6, 1.5, 9.5, FW, F, WALL);                                                   // Boden im Verbindungsbau
+  rug(-5.2, 5.2, -7.6, -0.4, F); K.cyl(0, -4, 1.3, 1.3, F + 0.06, F + 0.07, RUG2, 24);
+  K.cyl(0, -4, 0.14, 0.2, F + 0.07, F + 0.78, WD, 10); K.cyl(0, -4, 0.85, 0.85, F + 0.78, F + 0.84, WD, 24); K.cyl(0, -4, 0.13, 0.17, F + 0.84, F + 1.14, '#f6f3ea', 12); [[0, 0], [0.16, 0.1], [-0.14, 0.12], [0.02, -0.16]].forEach(function (c, n) { K.sphere(c[0], -4 + c[1], F + 1.3 + (n ? 0 : 0.1), 0.15, n % 2 ? '#f3a6bd' : '#fbf4e2'); });
+  [-1, 1].forEach(function (s) { K.box(s * 2.7 - 0.5, s * 2.7 + 0.5, -5.5, -2.5, F + 0.06, F + 0.48, VELV); K.box(s * 3.2 - 0.14, s * 3.2 + 0.14, -5.5, -2.5, F + 0.06, F + 1.0, VELV); [-5.5, -2.64].forEach(function (v) { K.box(s * 2.7 - 0.5, s * 2.7 + 0.64, v, v + 0.14, F + 0.06, F + 0.72, VELV); }); });
+  K.box(-8.9, -6.6, -7.6, -5.9, F + 0.72, F + 1.02, DARK); K.box(-6.75, -6.55, -7.5, -6.0, F + 0.74, F + 0.8, '#ffffff'); [[-8.7, -7.4], [-8.7, -6.1], [-6.8, -6.75]].forEach(function (c) { K.cyl(c[0], c[1], 0.06, 0.05, F, F + 0.72, DARK, 8); }); K.box(-6.2, -5.6, -7.1, -6.4, F + 0.42, F + 0.5, RUG3); K.cyl(-5.9, -6.75, 0.05, 0.05, F, F + 0.42, DARK, 6);
+  K.box(10.15, 10.8, -4.9, -2.3, F, F + 1.35, STONE2); K.box(10.1, 10.8, -5.05, -2.15, F + 1.35, F + 1.5, STONE); K.box(10.1, 10.2, -4.3, -2.9, F, F + 0.9, '#3a3432'); K.box(10.12, 10.22, -4.0, -3.2, F + 0.05, F + 0.3, '#f3a070');
+  picture('e', -3.6, 10.8, F + 2.0, 1.5, 1.9, '#b9d3df'); picture('w', -5.2, -10.8, F + 1.5, 2.2, 1.5, '#8fb7a0'); picture('w', -1.0, -10.8, F + 1.6, 1.2, 1.6, '#d9b58c'); picture('w', 2.2, -10.8, F + 1.5, 1.6, 1.2, '#9fb6d6');
+  K.cyl(0, -4, 0.03, 0.03, 5.4, 9.6, GOLD, 6); K.add(new THREE.TorusGeometry(1.05, 0.05, 6, 28), GOLD, 0, 5.4, 4, 0, Math.PI / 2); K.add(new THREE.TorusGeometry(0.55, 0.04, 6, 20), GOLD, 0, 5.05, 4, 0, Math.PI / 2); K.cyl(0, -4, 0.1, 0.02, 4.8, 5.4, GOLD, 8);
+  for (var ch = 0; ch < 8; ch++) { var ca = ch * Math.PI / 4; K.sphere(1.05 * Math.cos(ca), -4 + 1.05 * Math.sin(ca), 5.58, 0.11, 'GLASS'); if (ch % 2) K.sphere(0.55 * Math.cos(ca), -4 + 0.55 * Math.sin(ca), 5.22, 0.09, 'GLASS'); }
+  plant(-9.6, 3.3, F, 1.5); plant(9.6, 3.3, F, 1.5);
+  rug(-13.5, 12.5, 7.3, 8.9, F); [-9, 6].forEach(function (u) { K.box(u - 0.8, u + 0.8, 10.9, 11.5, F + 0.7, F + 0.78, WD); K.box(u - 0.7, u + 0.7, 11.0, 11.45, F, F + 0.7, WD2); K.cyl(u, 11.2, 0.12, 0.16, F + 0.78, F + 1.1, '#9fb6d6', 10); K.sphere(u, 11.2, F + 1.3, 0.24, '#f3a6bd'); });
+  // Speisezimmer
+  rug(13.6, 25.4, 4.6, 9.7, FW); K.box(15.2, 23.8, 6.4, 7.9, FW + 0.72, FW + 0.8, WD); [[15.6, 6.7], [15.6, 7.6], [23.4, 6.7], [23.4, 7.6]].forEach(function (c) { K.cyl(c[0], c[1], 0.07, 0.06, FW + 0.06, FW + 0.72, WD, 8); });
+  for (var dc = 16.2; dc < 23.2; dc += 1.35) { [5.75, 8.55].forEach(function (v, n) { K.box(dc - 0.24, dc + 0.24, v - 0.24, v + 0.24, FW + 0.06, FW + 0.48, RUG3); K.box(dc - 0.24, dc + 0.24, n ? v + 0.18 : v - 0.24, n ? v + 0.24 : v - 0.18, FW + 0.48, FW + 1.05, WD); }); K.cyl(dc, 7.15, 0.16, 0.16, FW + 0.8, FW + 0.82, '#ffffff', 12); }
+  [17.6, 21.4].forEach(function (u) { K.cyl(u, 7.15, 0.05, 0.08, FW + 0.8, FW + 1.1, GOLD, 8); K.sphere(u, 7.15, FW + 1.2, 0.07, 'GLASS'); });
+  picture('n', 19.5, 12.3, FW + 1.5, 2.6, 1.4, '#8fb7a0');
+  // Bibliothek
+  rug(-28.3, -21.3, 2.2, 8.4, FW); K.box(-29.3, -28.75, 1.0, 9.4, FW, FW + 3.0, WD);
+  for (var sh = 0; sh < 5; sh++) for (var bk = 0; bk < 20; bk++) { var bh = 0.36 + ((bk * 7 + sh * 3) % 5) * 0.03; K.box(-28.75, -28.62, 1.2 + bk * 0.4, 1.52 + bk * 0.4, FW + 0.12 + sh * 0.58, FW + 0.12 + sh * 0.58 + bh, ['#8a3338', '#3f6a8a', '#c9a24e', '#4f7a6a', '#7a5a44', '#d9cdb0'][(bk * 5 + sh * 2) % 6]); }
+  K.box(-25.6, -24.4, 4.6, 5.9, FW + 0.06, FW + 0.5, VELV); K.box(-25.6, -24.4, 5.75, 5.95, FW + 0.06, FW + 1.05, VELV); K.cyl(-23.5, 4.9, 0.05, 0.2, FW + 0.06, FW + 0.6, WD, 8); K.sphere(-23.5, 4.9, FW + 0.9, 0.3, '#8fb7d6');
+  plant(-17.6, -6.5, 0.6, 1.6); plant(-12.2, -7.4, 0.6, 1.2); plant(15.6, -3.4, 0.6, 1.5);
+  ZONES.push({ x: CX, y: CY, ang: ANG, base: base, r: [[-10.8, 10.8, -9.25, 9.25, F], [-16.7, 15.3, 4.5, 11.6, F], [-20.3, -16.6, 1.5, 9.5, F], [-29.3, -20.3, 0.2, 10.1, FW], [10.8, 27.9, 2.0, 12.3, FW], [-19.0, -10.8, -8.8, 0.6, 0.6], [10.8, 16.9, -4.6, 2.0, 0.6],
+    [-6.3, 6.3, -15.5 - n * 0.62, -15.5, 0.05, 0.36 / 0.62], [-30, 29, -15.5, 2, 0.05]] });
+  K.place(CX, CY, base, ANG);
+})();
+
+// ---------- 4 Schweizerhaus (1848-50): Ziegelsockel, zwei Holzgeschosse, umlaufender Balkon mit Schnitzbrüstung, weites Satteldach ----------
+(function () {
+  var K = Kit(), BRICK = '#dc8c70', BRICK2 = '#eaa88e', WOOD = '#c9a66b', WOODL = '#dfc48f', WOODD = '#a5814f', SHUT = '#a8543f', ROOF = '#8f7866', WHITE = '#f6f2e6';
+  var CX = 90.15, CY = 36.7, ANG = 0.438, Lh = 12.15, Dp = 8.8, Lc = local(CX, CY, ANG);
+  var base = maxH([Lc(-Lh, -Dp), Lc(Lh, -Dp), Lc(Lh, Dp), Lc(-Lh, Dp)]) - 0.15, pitch = 0.37, tp = Math.tan(pitch);
+  K.box(-Lh - 0.1, Lh + 0.1, -Dp - 0.1, Dp + 0.1, -8, 0.4, '#cbc6b8'); K.box(-Lh, Lh, -Dp, Dp, 0.4, 3.5, BRICK); K.box(-Lh - 0.07, Lh + 0.07, -Dp - 0.07, Dp + 0.07, 3.22, 3.5, BRICK2);
+  var wu = Lh + 0.18, wv = Dp + 0.18;
+  K.box(-wu, wu, -wv, wv, 3.5, 9.7, WOOD); K.box(-wu - 0.08, wu + 0.08, -wv - 0.08, wv + 0.08, 6.42, 6.7, WOODD); K.box(-wu - 0.05, wu + 0.05, -wv - 0.05, wv + 0.05, 3.5, 3.72, WOODD);
+  K.box(-wu - 0.04, wu + 0.04, -wv - 0.04, wv + 0.04, 5.75, 6.42, WOODL);                 // geschnitztes Brüstungsband
+  // umlaufender Balkon im zweiten Holzgeschoss
+  var bu = wu + 1.6, bv = wv + 1.6;
+  K.box(-bu, bu, -bv, bv, 6.5, 6.72, WOODD);
+  [[-bu, bu, -bv, -bv + 0.14], [-bu, bu, bv - 0.14, bv], [-bu, -bu + 0.14, -bv, bv], [bu - 0.14, bu, -bv, bv]].forEach(function (b) { K.box(b[0], b[1], b[2], b[3], 6.72, 7.62, WOODL); K.box(b[0] - 0.04, b[1] + 0.04, b[2] - 0.04, b[3] + 0.04, 7.62, 7.74, WOODD); K.box(b[0] - 0.02, b[1] + 0.02, b[2] - 0.02, b[3] + 0.02, 6.25, 6.5, WOODL); });
+  var i, n = 8;
+  for (i = 0; i <= n; i++) { var pu = -bu + 0.1 + (2 * bu - 0.2) * i / n; [-1, 1].forEach(function (s) { K.box(pu - 0.1, pu + 0.1, s * (bv - 0.1) - 0.1, s * (bv - 0.1) + 0.1, 6.72, 9.5, WOODD); K.box(pu - 0.09, pu + 0.09, s * (wv + 0.8) - 0.75, s * (wv + 0.8) + 0.75, 6.05, 6.5, WOODD); }); }
+  [-5.9, 0, 5.9].forEach(function (v) { [-1, 1].forEach(function (s) { K.box(s * (bu - 0.1) - 0.1, s * (bu - 0.1) + 0.1, v - 0.1, v + 0.1, 6.72, 9.9 + (wv - Math.abs(v)) * tp * 0.8, WOODD); K.box(s * (wu + 0.8) - 0.75, s * (wu + 0.8) + 0.75, v - 0.09, v + 0.09, 6.05, 6.5, WOODD); }); });
+  // Laube im ersten Holzgeschoss an der Gartenseite
+  K.box(-4.8, 4.8, -wv - 1.45, -wv, 3.5, 3.7, WOODD); K.box(-4.8, 4.8, -wv - 1.45, -wv - 1.33, 3.7, 4.6, WOODL); K.box(-4.84, 4.84, -wv - 1.49, -wv - 1.29, 4.6, 4.7, WOODD);
+  [-4.7, 0, 4.7].forEach(function (u) { K.box(u - 0.09, u + 0.09, -wv - 1.45, -wv - 1.27, 3.7, 6.5, WOODD); });
+  var wo = { frame: WHITE, f: 0.12, t: 0.1, bars: true, shut: SHUT, sw: 0.56 };
+  [-9.9, -5.9, -1.95, 1.95, 5.9, 9.9].forEach(function (u) { ['s', 'n'].forEach(function (f) { var pl = f === 's' ? -wv : wv; K.win(f, u, pl, 4.05, 1.3, 1.6, wo); K.win(f, u, pl, 7.5, 1.3, 1.6, wo); K.win(f, u, f === 's' ? -Dp : Dp, 1.25, 0.95, 1.5, { frame: WHITE, f: 0.11, t: 0.09 }); }); });
+  ['w', 'e'].forEach(function (f) {
+    var pl = f === 'w' ? -wu : wu, pb = f === 'w' ? -Lh : Lh;
+    [-5.5, 0, 5.5].forEach(function (v) { K.win(f, v, pl, 4.05, 2.5, 1.6, { frame: WHITE, f: 0.12, t: 0.1, shut: SHUT, sw: 0.55 }); K.slab(f, v - 0.45, v - 0.38, 4.05, 5.65, pl, 0.08, WHITE); K.slab(f, v + 0.38, v + 0.45, 4.05, 5.65, pl, 0.08, WHITE); K.win(f, v, pl, 7.5, 2.5, 1.6, { frame: WHITE, f: 0.12, t: 0.1, shut: SHUT, sw: 0.55 }); K.slab(f, v - 0.45, v - 0.38, 7.5, 9.1, pl, 0.08, WHITE); K.slab(f, v + 0.38, v + 0.45, 7.5, 9.1, pl, 0.08, WHITE); });
+    [-6.3, -2.4, 2.4, 6.3].forEach(function (v) { K.win(f, v, pb, 1.25, 0.95, 1.5, { frame: WHITE, f: 0.11, t: 0.09 }); });
+    [-0.75, 0, 0.75].forEach(function (v) { K.win(f, v, pb, 1.4, 0.26, 1.0, { frame: WHITE, f: 0.06, t: 0.07 }); });
+    [-1.7, 1.7].forEach(function (v) { K.win(f, v, pl, 10.5, 0.9, 1.1, { frame: WHITE, f: 0.1, t: 0.09, shut: SHUT, sw: 0.4 }); });
+    K.slab(f, -2.5, 2.5, 10.05, 10.2, pl, 1.05, WOODD); var s = f === 'w' ? -1 : 1; K.box(s * (wu + 0.98) - 0.06, s * (wu + 0.98) + 0.06, -2.5, 2.5, 10.2, 11.0, WOODL);
+  });
+  var ridge = K.gable(-wu, wu, -wv, wv, 9.7, pitch, 'u', 2.7, ROOF, WOOD, 0.3);
+  [0, -4.6, 4.6, -8.7, 8.7].forEach(function (v) { var y = ridge - Math.abs(v) * tp; [-1, 1].forEach(function (s) { K.box(s * (wu + 1.3) - 1.3, s * (wu + 1.3) + 1.3, v - 0.13, v + 0.13, y - 0.42, y - 0.12, WOODD); }); });
+  K.box(-wu - 2.7, wu + 2.7, -0.22, 0.22, ridge + 0.18, ridge + 0.42, '#7f6a5a');
+  [-5.2, 5.0].forEach(function (u) { K.box(u - 0.45, u + 0.45, 0.8, 1.7, ridge - 1.2, ridge + 1.3, BRICK); K.box(u - 0.55, u + 0.55, 0.7, 1.8, ridge + 1.3, ridge + 1.5, '#b9735c'); });
+  K.place(CX, CY, base, ANG);
+})();
+
+// ---------- 3 Gärtnerhaus mit Remise (1854, J. C. Kunkler): Fachwerkgiebel, Balkon über dem Erker, niedrige Remise ----------
+(function () {
+  var K = Kit(), PL = '#f4efe2', PL2 = '#f5ebd3', TIM = '#8d6b4b', ROOF = '#9a745e', SH = '#7f957f', WHITE = '#ffffff', WOODR = '#bd9963';
+  var CX = -178.25, CY = 109.35, Lc = local(CX, CY, 0), base = maxH([Lc(-14, -5), Lc(14, -5), Lc(14, 5), Lc(-14, 5)]) - 0.1;
+  var u0 = 3.2, u1 = 14.25, um = (u0 + u1) / 2, tp = Math.tan(0.7);
+  K.box(u0 - 0.08, u1 + 0.08, -5.33, 5.33, -6, 0.4, '#cfcabb'); K.box(u0, u1, -5.25, 5.25, 0.4, 3.2, PL); K.box(u0 - 0.03, u1 + 0.03, -5.28, 5.28, 3.2, 6.0, PL2);
+  K.box(u0 - 0.07, u1 + 0.07, -5.32, 5.32, 3.1, 3.3, TIM); K.box(u0 - 0.07, u1 + 0.07, -5.32, 5.32, 5.85, 6.0, TIM);
+  var ridge = K.gable(u0, u1, -5.25, 5.25, 6.0, 0.7, 'v', 0.85, ROOF, PL2, 0.24);
+  ['s', 'n'].forEach(function (f) {
+    var pl = f === 's' ? -5.28 : 5.28;
+    [u0 + 0.1, 5.4, 7.1, um, 10.35, 12.05, u1 - 0.1].forEach(function (u) { var top = 6.0 + (5.52 - Math.abs(u - um)) * tp - 0.15; K.slab(f, u - 0.09, u + 0.09, 3.3, Math.max(5.9, top), pl, 0.05, TIM); });
+    K.slab(f, um - 3.4, um + 3.4, 8.0, 8.16, pl, 0.05, TIM);
+    [-1, 1].forEach(function (s) { for (var k = 0; k < 6; k++) { var uu = um + s * (0.5 + k * 0.5), yy = 6.2 + k * 0.42; K.slab(f, uu - 0.07, uu + 0.07, yy, yy + 0.5, pl, 0.045, TIM); } });
+    K.win(f, um, pl, 8.5, 1.0, 1.2, { frame: WHITE, f: 0.1, bars: true });
+    [5.0, 12.4].forEach(function (u) { K.win(f, u, f === 's' ? -5.25 : 5.25, 1.3, 1.1, 1.5, { frame: WHITE, f: 0.11, bars: true, shut: SH, sw: 0.5 }); K.win(f, u, pl, 3.8, 1.0, 1.5, { frame: WHITE, f: 0.1, bars: true, shut: SH, sw: 0.45 }); });
+  });
+  K.box(6.9, 10.5, -6.35, -5.25, 0.4, 3.0, PL); K.win('s', um, -6.35, 1.2, 2.3, 1.5, { frame: WHITE, f: 0.12, bars: true }); K.box(6.6, 10.8, -6.7, -5.25, 3.0, 3.2, TIM);
+  K.railU(6.7, 10.7, -6.6, 3.2, 0.9, WHITE, WHITE, 1.35, 0.1); K.win('s', um, -5.28, 3.4, 1.1, 2.2, { frame: WHITE, f: 0.1, bars: true });
+  [-2.6, 2.6].forEach(function (v) { K.win('e', v, 14.25, 1.3, 1.1, 1.5, { frame: WHITE, f: 0.11, bars: true, shut: SH, sw: 0.5 }); K.win('e', v, 14.28, 3.8, 1.0, 1.5, { frame: WHITE, f: 0.1, bars: true, shut: SH, sw: 0.45 }); });
+  [0, 2, 4].forEach(function (k) { K.slab('e', -5.3 + k * 2.6, -5.1 + k * 2.6, 3.3, 5.9, 14.28, 0.05, TIM); });
+  K.box(um + 2.2, um + 2.9, 1.2, 1.9, ridge - 1.4, ridge + 0.9, '#c9c4b6');
+  // Remise
+  K.box(-14.3, u0, -4.28, 4.28, -6, 0.3, '#cfcabb'); K.box(-14.25, u0, -4.2, 4.2, 0.3, 2.4, PL); K.box(-14.28, u0, -4.23, 4.23, 2.4, 3.6, WOODR);
+  K.gable(-14.25, u0, -4.2, 4.2, 3.6, 0.62, 'u', 0.7, ROOF, WOODR, 0.22);
+  [-11.3, -7.0, -2.7].forEach(function (u) { K.win('s', u, -4.2, 0.35, 2.5, 2.0, { fill: '#8a6a4c', frame: TIM, f: 0.14 }); K.slab('s', u - 0.03, u + 0.03, 0.35, 2.35, -4.2, 0.06, TIM); K.win('n', u, 4.2, 1.2, 1.0, 1.0, { frame: WHITE, f: 0.1 }); });
+  K.win('w', 0, -14.25, 1.1, 1.0, 1.1, { frame: WHITE, f: 0.1 });
+  // --- Innenräume (im POV-Modus begehbar): Wohnstube mit Flickenteppich, Tisch, Kachelofen und Topfpflanzen; in der Remise Schubkarre und Gartengerät ---
+  K.glow = 0.35; var F = 0.4, FR = 0.6, WD = '#b98c62', WD2 = '#8d6b4b', POT = '#c98a62', GRN = '#6fbd6a';
+  K.box(-14.25, u0, -4.2, 4.2, 0.3, FR, '#e3dccb');                                             // Steinboden der Remise, über dem Gelände
+  K.box(5.6, 11.9, -2.6, 2.6, F, F + 0.03, '#b5533f'); K.box(6.1, 11.4, -2.1, 2.1, F + 0.03, F + 0.045, '#e9d8b0'); for (var st = 0; st < 5; st++) K.box(6.5 + st * 1.0, 6.9 + st * 1.0, -2.1, 2.1, F + 0.045, F + 0.055, st % 2 ? '#6f9478' : '#b5533f');
+  K.box(7.5, 10.0, -0.65, 0.65, F + 0.72, F + 0.8, WD); [[7.7, -0.5], [7.7, 0.5], [9.8, -0.5], [9.8, 0.5]].forEach(function (c) { K.box(c[0] - 0.05, c[0] + 0.05, c[1] - 0.05, c[1] + 0.05, F + 0.05, F + 0.72, WD2); });
+  [-1.25, 1.25].forEach(function (v) { K.box(7.6, 9.9, v - 0.2, v + 0.2, F + 0.42, F + 0.48, WD); K.box(7.8, 7.9, v - 0.18, v + 0.18, F + 0.05, F + 0.42, WD2); K.box(9.6, 9.7, v - 0.18, v + 0.18, F + 0.05, F + 0.42, WD2); });
+  K.cyl(8.75, 0, 0.16, 0.2, F + 0.8, F + 1.0, '#f6f3ea', 12); K.sphere(8.75, 0, F + 1.18, 0.26, '#f3c14e'); K.sphere(8.55, 0.1, F + 1.1, 0.16, '#f3a6bd');
+  K.box(12.5, 13.9, 3.5, 4.95, F, F + 1.5, '#6f9478'); K.box(12.7, 13.7, 3.7, 4.8, F + 1.5, F + 2.1, '#7fa488'); K.box(12.45, 13.95, 3.45, 5.0, F + 1.45, F + 1.55, '#f4efe2'); K.box(12.45, 12.55, 3.9, 4.6, F + 0.3, F + 0.85, '#3a3432'); K.cyl(13.2, 4.3, 0.1, 0.1, F + 2.1, 2.8 + F, '#55595c', 8);
+  [1.0, 1.75].forEach(function (y) { K.box(3.2, 3.62, -3.4, 3.4, F + y, F + y + 0.05, WD); for (var pv = -3.0; pv <= 3.01; pv += 1.2) { K.cyl(3.42, pv + (y > 1.2 ? 0.4 : 0), 0.1, 0.13, F + y + 0.05, F + y + 0.27, POT, 10); K.sphere(3.42, pv + (y > 1.2 ? 0.4 : 0), F + y + 0.4, 0.18, GRN); } });
+  [5.0, 12.4].forEach(function (u) { K.cyl(u, -4.75, 0.14, 0.18, F, F + 0.32, POT, 10); K.sphere(u, -4.75, F + 0.62, 0.34, GRN); K.sphere(u, -4.75, F + 1.0, 0.2, '#f08c8c'); });
+  K.cyl(-9.2, 0.3, 0.26, 0.26, FR + 0.0, FR + 0.52, '#55595c', 14); K.add(new THREE.CylinderGeometry(0.27, 0.27, 0.14, 14), '#55595c', -9.2, FR + 0.27, -0.3, 0, Math.PI / 2);      // Schubkarre
+  K.box(-8.9, -7.3, -0.15, 0.75, FR + 0.42, FR + 0.8, '#6f9478'); K.box(-8.8, -7.4, -0.05, 0.65, FR + 0.8, FR + 0.86, '#8a6a4c'); [-0.1, 0.7].forEach(function (v) { K.box(-7.4, -6.3, v - 0.03, v + 0.03, FR + 0.62, FR + 0.68, WD2); K.box(-7.6, -7.52, v - 0.03, v + 0.03, FR, FR + 0.45, WD2); });
+  [[-12.9, 3.2, 0.3], [-12.2, 3.4, 0.24], [-12.7, 2.5, 0.2], [-13.3, -3.3, 0.28], [-12.6, -3.4, 0.2]].forEach(function (c) { K.cyl(c[0], c[1], c[2] * 0.75, c[2], FR, FR + c[2] * 1.3, POT, 10); });
+  K.sphere(-12.9, 3.2, FR + 0.62, 0.32, GRN); K.sphere(-13.3, -3.3, FR + 0.55, 0.28, GRN);
+  [[-4.0, 0.12], [-3.3, 0.16], [-2.6, 0.1]].forEach(function (c, n) { K.add(new THREE.CylinderGeometry(0.025, 0.025, 1.9, 6), WD2, c[0], FR + 0.94, -(3.9 - c[1]), 0, c[1]); K.box(c[0] - 0.16, c[0] + 0.16, 4.0, 4.1, FR + 1.8, FR + (n === 1 ? 2.1 : 1.92), '#70767a'); });
+  K.cyl(-0.9, -3.2, 0.2, 0.24, FR, FR + 0.4, '#8fb7a0', 12); K.add(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6), '#8fb7a0', -0.55, FR + 0.35, 3.2, 0, 0, -0.9);
+  ZONES.push({ x: CX, y: CY, ang: 0, base: base, r: [[u0, u1, -5.25, 5.25, F], [-14.25, u0, -4.2, 4.2, FR, 0, 1.55]] });
+  K.place(CX, CY, base, 0);
+})();
+
+// ---------- 2 Dienstbotenhaus (1884): gelber Putzbau mit weißen Läden und flachem Walmdach ----------
+(function () {
+  var K = Kit(), Y = '#f3dd92', WHITE = '#fbfaf4', ROOF = '#c2c3bd', EAVE = '#e7e3d8', SH = '#eef0e8', ST = '#cfcabb';
+  var CX = -37.5, CY = 89.6, ANG = 0.0227, Lc = local(CX, CY, ANG), base = maxH([Lc(-8.6, 3.7), Lc(8.6, 3.7), Lc(0, -9), Lc(0, 0)]) - 0.1;
+  K.box(-8.7, 8.7, -3.8, 3.8, -6, 0.5, ST); K.box(-8.6, 8.6, -3.7, 3.7, 0.5, 4.9, Y); K.box(-4.3, 4.9, -9.2, -3.7, -6, 0.5, ST); K.box(-4.2, 4.8, -9.1, -3.7, 0.5, 4.9, Y);
+  K.box(-8.68, 8.68, -3.78, 3.78, 4.55, 4.9, WHITE); K.box(-4.28, 4.88, -9.18, -3.7, 4.55, 4.9, WHITE);
+  K.box(-9.3, 9.3, -4.4, 4.4, 4.9, 5.1, EAVE); K.box(-4.9, 5.5, -9.8, -3.7, 4.9, 5.1, EAVE);
+  K.hip(-9.3, 9.3, -4.4, 4.4, 5.1, 2.0, 'u', 9.5, ROOF); K.hip(-4.9, 5.5, -9.8, -1.0, 5.1, 1.9, 'v', 4.6, ROOF);
+  var wo = { frame: WHITE, f: 0.14, bars: true, shut: SH, sw: 0.55, sill: WHITE };
+  [-2.6, 0.3, 3.2].forEach(function (u) { K.win('s', u, -9.1, 1.5, 1.05, 1.9, wo); });
+  [-6.6, 6.9].forEach(function (u) { K.win('s', u, -3.7, 1.5, 1.05, 1.9, wo); });
+  [-6.4, -3.2, 0, 3.2, 6.4].forEach(function (u) { K.win('n', u, 3.7, 1.5, 1.0, 1.8, wo); });
+  [-1.5, 1.5].forEach(function (v) { K.win('e', v, 8.6, 1.5, 1.0, 1.8, wo); K.win('w', v, -8.6, 1.5, 1.0, 1.8, wo); });
+  K.win('w', -6.4, -4.2, 0.6, 1.0, 2.3, { fill: '#7b5a44', frame: WHITE, f: 0.14 }); K.box(-5.6, -4.2, -7.2, -5.6, 3.1, 3.25, EAVE); K.box(-5.55, -5.4, -7.15, -7.0, 0.5, 3.1, WHITE); K.box(-5.6, -4.2, -7.3, -5.5, 0.2, 0.5, ST);
+  K.box(2.0, 2.6, -0.3, 0.3, 6.3, 7.9, '#c9c4b6');
+  K.place(CX, CY, base, ANG);
+})();
+
+// ---------- 5 Seeschlössle (Kern von 1626): weißer Putzbau mit steilem Giebel und grünen Läden; daneben der kleine Schuppen ----------
+(function () {
+  var K = Kit(), W = '#f6f3ea', GR = '#6f9478', RT = '#a8664e', ST = '#cfcabb', WHITE = '#ffffff';
+  var CX = 88.8, CY = -6.5, ANG = 0.3927, hu = 6.55, hv = 5.85, Lc = local(CX, CY, ANG), base = maxH([Lc(-hu, -hv), Lc(hu, -hv), Lc(hu, hv), Lc(-hu, hv)]) - 0.1;
+  K.box(-hu - 0.08, hu + 0.08, -hv - 0.08, hv + 0.08, -6, 0.5, ST); K.box(-hu, hu, -hv, hv, 0.5, 6.6, W);
+  var ridge = K.gable(-hu, hu, -hv, hv, 6.6, 0.84, 'v', 0.55, RT, W, 0.26), wo = { frame: WHITE, f: 0.12, bars: true, shut: GR, sw: 0.5 };
+  ['n', 's'].forEach(function (f) {
+    var pl = f === 'n' ? hv : -hv;
+    [-3.5, 3.5].forEach(function (u) { K.win(f, u, pl, 3.9, 1.15, 1.6, wo); if (f === 's') K.win(f, u, pl, 1.3, 1.15, 1.7, wo); });
+    K.win(f, 0, pl, 3.9, 1.15, 1.6, wo); [-1.5, 1.5].forEach(function (u) { K.win(f, u, pl, 7.6, 1.0, 1.4, wo); }); K.win(f, 0, pl, 10.5, 0.8, 1.0, { frame: WHITE, f: 0.1, shut: GR, sw: 0.36 });
+  });
+  K.box(-1.6, 1.6, hv, hv + 1.4, 0, 3.0, W); K.win('n', 0, hv + 1.4, 0.3, 1.5, 2.3, { fill: '#6f5644', f: 0.18, frame: '#e6e1d4' }); K.gable(-1.6, 1.6, hv, hv + 1.4, 3.0, 0.62, 'v', 0.25, RT, W, 0.18);
+  [-3.4, 3.4].forEach(function (u) { K.add(new THREE.CylinderGeometry(0.5, 0.5, 0.1, 18), WHITE, u, 1.9, -(hv + 0.03), 0, Math.PI / 2); K.add(new THREE.CylinderGeometry(0.34, 0.34, 0.14, 18), 'GLASS', u, 1.9, -(hv + 0.04), 0, Math.PI / 2); });
+  [-2.6, 2.6].forEach(function (v) { K.win('e', v, hu, 3.9, 1.1, 1.6, wo); K.win('w', v, -hu, 1.3, 1.1, 1.7, wo); K.win('w', v, -hu, 3.9, 1.1, 1.6, wo); });
+  K.box(hu, hu + 4.6, -2.6, 2.8, -6, 3.0, W); K.box(hu - 0.1, hu + 4.8, -2.8, 3.0, 3.0, 3.2, '#dcd9ce'); K.win('n', hu + 2.3, 2.8, 1.0, 3.4, 1.5, { frame: WHITE, f: 0.1 }); K.win('e', 0.1, hu + 4.6, 1.0, 3.6, 1.5, { frame: WHITE, f: 0.1 });
+  K.box(1.6, 2.3, -0.4, 0.3, ridge - 2.6, ridge + 0.4, '#d9d5c8');
+  K.place(CX, CY, base, ANG);
+  var S = Kit(); S.glow = 0.6; var sx = 63.7, sy = -3.9, sa = 0.654, WD = '#bb955f';
+  S.box(-3.55, 3.55, -2.85, 2.85, -4, 2.4, WD); S.gable(-3.55, 3.55, -2.85, 2.85, 2.4, 0.6, 'u', 0.4, RT, WD, 0.18); S.win('s', 0, -2.85, 0.1, 1.6, 1.9, { fill: '#8a6a4c', f: 0.1, frame: '#8d6b4b' });
+  S.place(sx, sy, H(sx, sy), sa);
+})();
+
+// ---------- 7 Ruine Degelstein (14. Jh.): vier Bruchsteinmauern um einen offenen Innenraum, Torbogen mit Gitter, Kreuzscharten; die Mauern folgen dem Hang ----------
+(function () {
+  var stone = ML('#c8c1b0'), A = [-234.8, -13.7];
+  function wall(len, hgt, arch, crosses, ang, seed, O) {
+    O = O || A;
+    var r = rng(seed), s = new THREE.Shape(), x = 0, ca = Math.cos(ang), sa = Math.sin(ang); s.moveTo(0, -3); s.lineTo(len, -3); s.lineTo(len, hgt - 0.5 + r() * 0.5);
+    for (x = len - 0.9; x > 0.2; x -= 0.9) s.lineTo(x, hgt - 0.35 + r() * 0.6);
+    s.lineTo(0, hgt - 0.6); s.lineTo(0, -3);
+    if (arch) { var h = new THREE.Path(), a0 = arch[0], a1 = arch[1], rr = (a1 - a0) / 2, sp = arch[2]; h.moveTo(a0, 0.02); h.lineTo(a1, 0.02); h.lineTo(a1, sp); h.absarc((a0 + a1) / 2, sp, rr, 0, Math.PI, false); h.lineTo(a0, 0.02); s.holes.push(h); }
+    crosses.forEach(function (c) { var p = new THREE.Path(), w = 0.11, a = 0.34; p.moveTo(c - w, 1.45); p.lineTo(c + w, 1.45); p.lineTo(c + w, 2.02); p.lineTo(c + a, 2.02); p.lineTo(c + a, 2.24); p.lineTo(c + w, 2.24); p.lineTo(c + w, 2.55); p.lineTo(c - w, 2.55); p.lineTo(c - w, 2.24); p.lineTo(c - a, 2.24); p.lineTo(c - a, 2.02); p.lineTo(c - w, 2.02); p.lineTo(c - w, 1.45); s.holes.push(p); });
+    var geo = new THREE.ExtrudeGeometry(s, { depth: 0.9, bevelEnabled: false, curveSegments: 10 }), P = geo.attributes.position;
+    for (var i = 0; i < P.count; i++) { var lx = P.getX(i); P.setY(i, P.getY(i) + H(O[0] + lx * ca, O[1] + lx * sa)); }
+    geo.computeVertexNormals(); var m = new THREE.Mesh(geo, stone); m.position.set(O[0], 0, -O[1]); m.rotation.y = ang; scene.add(m);
+  }
+  var a1 = Math.atan2(-6.1 + 13.7, -223.7 + 234.8), a2 = Math.atan2(-18.9 + 13.7, -231.2 + 234.8), c1 = Math.cos(a1), s1 = Math.sin(a1);
+  wall(13.45, 4.3, [5.7, 7.7, 2.1], [2.9, 10.5], a1, 7); wall(6.4, 3.7, [2.3, 3.9, 1.9], [], a2, 13);
+  // die beiden übrigen Wände schließen das Rechteck (innen hohl, oben offen)
+  wall(13.45, 4.0, null, [], a1, 21, [A[0] + Math.cos(a2) * 5.5, A[1] + Math.sin(a2) * 5.5]); wall(6.4, 4.1, null, [], a2, 29, [A[0] + c1 * 13.45, A[1] + s1 * 13.45]);
+  function hu(u) { return H(A[0] + u * c1, A[1] + u * s1); }
+  var K = Kit(), g0 = hu(6.7); for (var u = 5.95; u < 7.6; u += 0.28) K.box(u - 0.03, u + 0.03, -0.5, -0.42, 0, 3.0 - Math.pow(Math.abs(u - 6.7), 2) * 0.9, IRON); K.box(5.7, 7.7, -0.5, -0.42, 1.9, 1.98, IRON);
+  K.place(A[0], A[1], g0, a1);
+  var B = Kit(); [[1.2, 3.5, 0.9], [2.1, 3.9, 0.7], [12.4, 3.6, 0.8], [11.5, 2.9, 0.6]].forEach(function (b) { B.sphere(b[0], -0.45, b[1] + hu(b[0]), b[2], '#7fc56c', 0.75); });
+  B.place(A[0], A[1], 0, a1);
+})();
+
+// ---------- 8 Gruft auf dem Horn: Grabplatte von Friedrich Gruber mit Urne, umgeben von einem gusseisernen Gitter ----------
+(function () {
+  var K = Kit(), x = -153, y = -95;
+  K.box(-1.75, 1.75, -2.45, 2.45, -1, 0.32, '#bdbba9'); K.box(-1.4, 1.4, -2.05, 2.05, 0.32, 0.58, '#cfcbbb'); K.box(-1.18, 1.18, -1.85, 1.85, 0.58, 0.82, '#e0dccd'); K.box(-0.85, 0.85, -1.45, 1.45, 0.82, 0.86, '#cdc9b9');
+  K.box(-0.42, 0.42, 2.6, 3.35, -1, 0.95, '#cfcbbb'); K.box(-0.5, 0.5, 2.52, 3.43, 0.95, 1.08, '#dcd8ca');
+  K.cyl(0, 2.97, 0.14, 0.1, 1.08, 1.3, IRON, 10); K.cyl(0, 2.97, 0.12, 0.34, 1.3, 1.62, IRON, 12); K.cyl(0, 2.97, 0.34, 0.38, 1.62, 1.92, IRON, 12); K.cyl(0, 2.97, 0.42, 0.42, 1.92, 1.98, IRON, 12); K.sphere(0, 2.97, 2.25, 0.36, '#7fc56c', 0.9);
+  K.railU(-2.9, 2.9, -3.3, 0, 1.05, IRON, IRON, 1.45, 0.12); K.railU(-2.9, 2.9, 4.0, 0, 1.05, IRON, IRON, 1.45, 0.12); K.railV(-3.3, 4.0, -2.9, 0, 1.05, IRON, IRON, 1.46, 0.12); K.railV(-3.3, 4.0, 2.9, 0, 1.05, IRON, IRON, 1.46, 0.12);
+  K.place(x, y, H(x, y) + 0.02, 0.3);
+})();
+
+// ---------- Friedenssäule (Coventry-Säule, 1990, Dietrich Förster): schlanke Granitstele mit gebogenem Kopf ----------
+(function () {
+  var seg = 22, hgt = 5.1, rings = [], pos = [], k;
+  for (k = 0; k <= seg; k++) { var f = k / seg, bend = f > 0.8 ? Math.pow((f - 0.8) / 0.2, 2) * 0.32 : 0, tw = 0.12 * f, ca = Math.cos(tw), sa = Math.sin(tw), wu = 0.19 - 0.012 * f, wv = 0.15 - 0.01 * f, ring = [];
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(function (c) { var u = c[0] * wu, v = c[1] * wv; ring.push([u * ca - v * sa + bend, f * hgt - (f > 0.8 ? c[0] * bend * 0.35 : 0), u * sa + v * ca]); }); rings.push(ring); }
+  function quad(a, b, c, d) { [a, b, c, a, c, d].forEach(function (p) { pos.push(p[0], p[1], p[2]); }); }
+  for (k = 0; k < seg; k++) for (var e = 0; e < 4; e++) quad(rings[k][e], rings[k][(e + 1) % 4], rings[k + 1][(e + 1) % 4], rings[k + 1][e]);
+  quad(rings[seg][0], rings[seg][1], rings[seg][2], rings[seg][3]);
+  var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.computeVertexNormals();
+  var m = new THREE.Mesh(geo, ML('#bcc3c6')); m.position.copy(W(17.4, -59.5, -0.1)); m.rotation.y = 0.5; scene.add(m);
+})();
+
+// ---------- Lindenhofbad (1950er) mit Bastion, Mole und Badesteg ----------
+// Lage aller Teile aus dem amtlichen Luftbild (DOP20) abgegriffen: Hauptgebäude mit Innenhof und rotem Dach, Rundbau an der Südostecke,
+// Uhrenturm an der Südwestecke, eingeschossiger Kabinentrakt im Westen, Bastion mit der Blutbuche, Mole in drei Abschnitten, Badesteg.
+(function () {
+  var WH = '#f8f7f2', WH2 = '#ecebe5', WHR = '#ffffff', GREY = '#dde3e5', GREY2 = '#c6cfd3', RED = '#d58373', MINT = '#cfe6da', BLUE = '#a9d4ea', WOOD = '#d6c2a4';
+  var STONE = '#d3cfc1', STONE2 = '#e7e4d9', CONC = '#dbd9cf', DECK = '#eceae1', RAIL = '#aab3b8', BENCH = '#6aa583', PANEL = '#62788f', HEDGE = '#77c466', LAWN = '#a9e273', ORANGE = '#f3a070';
+  var CB = [-277.5, -88.5], RD = 7.8, RR = 10.2, W1 = [-269.46, -94.78], E1 = [-261.9, -98.5], C1 = [-253.7, -91.0], TP = 5.08, TD = 7.1, TR = 2.4;
+  function polar(c, r, deg) { var a = deg * Math.PI / 180; return [c[0] + r * Math.cos(a), c[1] + r * Math.sin(a)]; }
+  function bench(K, x, y, dir, yb) {
+    var sx = Math.sin(dir), cx = Math.cos(dir);
+    K.add(new THREE.BoxGeometry(1.8, 0.09, 0.46), BENCH, x, yb + 0.47, -y, dir); K.add(new THREE.BoxGeometry(1.8, 0.42, 0.07), BENCH, x + sx * 0.24, yb + 0.8, -(y - cx * 0.24), dir);
+    [-0.7, 0.7].forEach(function (s) { K.add(new THREE.BoxGeometry(0.08, 0.44, 0.42), '#8d979b', x + cx * s, yb + 0.22, -(y + sx * s), dir); });
+  }
+  function parasol(K, x, y, yb, r, col, square) {
+    K.cyl(x, y, 0.05, 0.05, yb, yb + 2.5, '#c9cdca', 6);
+    var g = new THREE.ConeGeometry(r, square ? 0.62 : 0.75, square ? 4 : 12); K.add(g, col, x, yb + 2.5 + (square ? 0.31 : 0.37), -y, square ? Math.PI / 4 : 0);
+  }
+
+  // --- Ufermauern: senkrechte Mauer auf der abgegriffenen Kante, oben ein Abschlussstein und ein ebener Streifen, der den Hang des Geländenetzes verdeckt
+  var Q = Kit(); Q.glow = 0.4; var CL = BAD.cliff, nw = BAD.nw, nd = BAD.nd;
+  function ribbon(pts, topCol, inset, hedge, fixed) {
+    var n = pts.length, I = [], Hh = [], i, p, q;
+    for (i = 0; i < n; i++) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l; p = pts[i];
+      I.push([p[0] + nx * inset, p[1] + ny * inset, nx, ny, p[0] + nx * 0.42, p[1] + ny * 0.42]);
+      Hh.push(fixed !== undefined ? fixed : Math.max(H(p[0] + nx * 2.4, p[1] + ny * 2.4), H(p[0] + nx * inset, p[1] + ny * inset), H(p[0] + nx * (inset + 1.3), p[1] + ny * (inset + 1.3))) + 0.14);
+    }
+    for (i = 0; i < n - 1; i++) {
+      p = pts[i]; q = pts[i + 1]; var A = I[i], Bq = I[i + 1], out = [-(A[2] + Bq[2]) / 2, -(A[3] + Bq[3]) / 2], h0 = Hh[i], h1 = Hh[i + 1];
+      Q.vquad(p, q, -1.5, h0, -1.5, h1, STONE, out);
+      Q.quad([p[0], h0, p[1]], [q[0], h1, q[1]], [Bq[4], h1, Bq[5]], [A[4], h0, A[5]], STONE2);
+      Q.quad([A[4], h0, A[5]], [Bq[4], h1, Bq[5]], [Bq[0], h1, Bq[1]], [A[0], h0, A[1]], topCol);
+      Q.vquad(A, Bq, h0 - 1.6, h0, h1 - 1.6, h1, topCol, [-out[0], -out[1]]);
+      if (hedge) { var mx = (p[0] + q[0]) / 2 - out[0] * 1.25, my = (p[1] + q[1]) / 2 - out[1] * 1.25, len = Math.hypot(q[0] - p[0], q[1] - p[1]); Q.add(new THREE.BoxGeometry(len + 0.3, 1.0, 1.15), HEDGE, mx, (h0 + h1) / 2 + 0.45, -my, Math.atan2(q[1] - p[1], q[0] - p[0]), 0, Math.atan2(h1 - h0, len)); }
+    }
+    return Hh;
+  }
+  ribbon(CL.slice(0, nw + 1), LAWN, 3.3, true);
+  var bay = CL.slice(nw + nd + 2), hb = ribbon(bay, LAWN, 3.3, false);
+  for (var bi = 2; bi < bay.length - 2; bi++) { var bp = bay[bi], bq = bay[bi + 1], bl = Math.hypot(bq[0] - bp[0], bq[1] - bp[1]); Q.add(new THREE.BoxGeometry(bl, 1.0, 1.15), HEDGE, (bp[0] + bq[0]) / 2, (hb[bi] + hb[bi + 1]) / 2 + 0.45, -((bp[1] + bq[1]) / 2 + 1.25), Math.atan2(bq[1] - bp[1], bq[0] - bp[0])); }
+  Q.rail(bay[0][0], bay[0][1], bay[1][0], bay[1][1], hb[0], hb[1], 1.05, RAIL); Q.rail(bay[1][0], bay[1][1], bay[2][0], bay[2][1], hb[1], hb[2], 1.05, RAIL);
+  // Vorplatz der Mole mit Bänken und der Treppe in die Badebucht
+  Q.prism(BAD.plat, -1.5, TP, STONE, DECK);
+  var eL = Math.hypot(C1[0] - E1[0], C1[1] - E1[1]), eu = [(C1[0] - E1[0]) / eL, (C1[1] - E1[1]) / eL], eo = [eu[1], -eu[0]], em = [(E1[0] + C1[0]) / 2, (E1[1] + C1[1]) / 2], eDir = Math.atan2(eu[1], eu[0]);
+  for (var sk = 1; sk <= 7; sk++) { var st = TP - sk * 0.66; Q.add(new THREE.BoxGeometry(eL - 1.6, st + 1.5, 0.46), STONE2, em[0] + eo[0] * (sk - 0.5) * 0.46, (st - 1.5) / 2, -(em[1] + eo[1] * (sk - 0.5) * 0.46), eDir); }
+  [-(eL / 2 - 0.9), 0, eL / 2 - 0.9].forEach(function (s) { var x0 = em[0] + eu[0] * s, y0 = em[1] + eu[1] * s; Q.rail(x0, y0, x0 + eo[0] * 3.1, y0 + eo[1] * 3.1, TP, TP - 4.5, 0.95, RAIL, { every: 1.55 }); });
+  bench(Q, -259.3, -91.7, 0.06, TP); bench(Q, -256.7, -91.9, -0.05, TP);
+  // Kiesstrand vor der Mauer: läuft vom Mauerfuß flach ins Wasser aus
+  var BP = BAD.beach, bt = THREE.ShapeUtils.triangulateShape(BP.map(function (v) { return new THREE.Vector2(v[0], v[1]); }), []);
+  function by(n) { return n < BAD.nb ? 1.15 : 0.03; }
+  bt.forEach(function (t) { Q.tri([BP[t[0]][0], by(t[0]), BP[t[0]][1]], [BP[t[1]][0], by(t[1]), BP[t[1]][1]], [BP[t[2]][0], by(t[2]), BP[t[2]][1]], '#ebe7d9'); });
+  Q.place(0, 0, 0, 0);
+
+  // --- Bastion: unterer Umgang und oberes Rund, beide mit Rohrgeländer; die Blutbuche aus dem Kataster steht mitten darauf
+  var Z = Kit(), a;
+  Z.cyl(CB[0], CB[1], RR, RR, -1.5, TR, STONE, 64); Z.cyl(CB[0], CB[1], RD, RD, TR, TD, STONE, 64); Z.cyl(CB[0], CB[1], RD + 0.14, RD + 0.14, TD - 0.3, TD + 0.02, STONE2, 64); Z.cyl(CB[0], CB[1], RR + 0.1, RR + 0.1, TR - 0.26, TR + 0.02, STONE2, 64);
+  for (a = 150; a < 336; a += 6) { var d0 = polar(CB, RD - 0.12, a), d1 = polar(CB, RD - 0.12, Math.min(336, a + 6)); Z.rail(d0[0], d0[1], d1[0], d1[1], TD, TD, 1.05, RAIL, { every: 2.4 }); }
+  for (a = 162; a < 306; a += 6) { if (a >= 228 && a < 240) continue; var r0 = polar(CB, RR - 0.1, a), r1 = polar(CB, RR - 0.1, a + 6); Z.rail(r0[0], r0[1], r1[0], r1[1], TR, TR, 1.0, RAIL, { every: 2.4 }); }
+  // Treppe vom Vorplatz hinab auf den Umgang und vom Umgang hinab auf den Kiesstrand
+  var s0 = polar(CB, 9.0, 334), s1 = polar(CB, 9.0, 309), sd = Math.atan2(s1[1] - s0[1], s1[0] - s0[0]), sn = 5;
+  for (var k1 = 0; k1 < sn; k1++) { var tt = (k1 + 0.5) / sn, top = TP - (k1 + 1) * (TP - TR) / (sn + 1); Z.add(new THREE.BoxGeometry(Math.hypot(s1[0] - s0[0], s1[1] - s0[1]) / sn, top - TR + 0.02, 2.1), STONE2, s0[0] + (s1[0] - s0[0]) * tt, (top + TR) / 2, -(s0[1] + (s1[1] - s0[1]) * tt), sd); }
+  for (var k2 = 0; k2 < 3; k2++) { var bs = polar(CB, RR + 0.35 + k2 * 0.6, 166); Z.add(new THREE.BoxGeometry(0.6, TR - (k2 + 1) * 0.5 + 1.5, 2.0), STONE2, bs[0], (TR - (k2 + 1) * 0.5 - 1.5) / 2, -bs[1], Math.atan2(Math.sin(166 * Math.PI / 180), Math.cos(166 * Math.PI / 180))); }
+  // Badesteg: schmale Rampe, die vom Umgang aus ins Wasser abtaucht
+  var g0 = polar(CB, RR - 0.3, 235), g1 = [-289.4, -115.6], gl = Math.hypot(g1[0] - g0[0], g1[1] - g0[1]), gu = [(g1[0] - g0[0]) / gl, (g1[1] - g0[1]) / gl], gn = [-gu[1] * 0.95, gu[0] * 0.95], ge = -0.45;
+  var ga = [g0[0] + gn[0], g0[1] + gn[1]], gb = [g0[0] - gn[0], g0[1] - gn[1]], gc = [g1[0] - gn[0], g1[1] - gn[1]], gd = [g1[0] + gn[0], g1[1] + gn[1]];
+  Z.quad([ga[0], TR, ga[1]], [gb[0], TR, gb[1]], [gc[0], ge, gc[1]], [gd[0], ge, gd[1]], CONC);
+  Z.vquad(ga, gd, -1.5, TR - 0.02, -1.5, ge - 0.02, STONE, [gn[0], gn[1]]); Z.vquad(gb, gc, -1.5, TR - 0.02, -1.5, ge - 0.02, STONE, [-gn[0], -gn[1]]);
+  var gt = 0.72, gm = TR + (ge - TR) * gt;
+  [1, -1].forEach(function (s) { Z.rail(g0[0] + gn[0] * s * 0.95, g0[1] + gn[1] * s * 0.95, g0[0] + gu[0] * gl * gt + gn[0] * s * 0.95, g0[1] + gu[1] * gl * gt + gn[1] * s * 0.95, TR, gm, 0.95, RAIL, { every: 2.2 }); });
+  Z.place(0, 0, 0, 0);
+
+  // --- Mole: breiter Ansatz, Knick nach Südosten, abgesetzter schmaler Kopf; Rohrgeländer, Bänke, Lichtmast
+  var Mo = Kit(); Mo.glow = 0.7; var DA = 4.6, DB = 3.9, TOPC = '#eceae2';
+  var MA = [W1, [-265.3, -100.3], [-263.4, -110.3], [-263.8, -111.2], [-261.2, -114.8], [-249.7, -119.2], [-241.4, -123.7], [-240.1, -120.4], [-247.9, -115.5], [-260.0, -109.8], E1];
+  var MB = [[-241.4, -123.7], [-235.0, -125.5], [-224.8, -127.1], [-222.6, -125.9], [-224.1, -125.0], [-235.0, -122.9], [-240.1, -120.4]];
+  Mo.prism(MA, -1.5, DA, CONC, TOPC); Mo.prism(MB, -1.5, DB, CONC, TOPC);
+  Mo.prism(Mo.offset(MA, 0.1), DA - 0.34, DA - 0.2, STONE2); Mo.prism(Mo.offset(MB, 0.1), DB - 0.34, DB - 0.2, STONE2);
+  var rm = [-0.441 * 0.6, -0.897 * 0.6]; Mo.prism([W1, E1, [E1[0] + rm[0], E1[1] + rm[1]], [W1[0] + rm[0], W1[1] + rm[1]]], DA, (DA + TP) / 2, STONE2);
+  Mo.prism([[-241.4, -123.7], [-240.1, -120.4], [-239.6, -120.6], [-240.9, -123.9]], DB, (DA + DB) / 2, STONE2);
+  Mo.railLine([[W1[0] + 0.5, W1[1] - 0.7], [-265.3, -100.3], [-263.4, -110.3], [-263.8, -111.2], [-261.2, -114.8], [-249.7, -119.2], [-241.4, -123.7]], DA, 1.05, RAIL);
+  Mo.railLine([[E1[0] + 0.25, E1[1] - 1.2], [-260.0, -109.8], [-247.9, -115.5], [-240.1, -120.4]], DA, 1.05, RAIL);
+  Mo.railLine([[-241.2, -123.75], [-235.0, -125.5], [-224.8, -127.1], [-222.6, -125.9], [-224.1, -125.0], [-235.0, -122.9], [-239.9, -120.5]], DB, 1.05, RAIL);
+  [0.3, 0.55, 0.8].forEach(function (t) { bench(Mo, -261.9 + 1.9 * t - 0.75, -98.5 - 11.3 * t, Math.atan2(-11.3, 1.9) + Math.PI, DA); });
+  [0.15, 0.4, 0.65, 0.88].forEach(function (t) { var bx = -260.0 + 19.9 * t, by = -109.8 - 10.6 * t, bd = Math.atan2(-10.6, 19.9); bench(Mo, bx + Math.sin(bd) * 0.75, by - Math.cos(bd) * 0.75, bd + Math.PI, DA); });
+  Mo.cyl(-262.0, -112.1, 0.1, 0.07, DA, DA + 7.6, RAIL, 8); Mo.box(-262.5, -261.5, -112.25, -111.95, DA + 7.5, DA + 7.62, RAIL);
+  Mo.cyl(-226.6, -125.9, 0.07, 0.05, DB, DB + 5.4, WHR, 8);
+  Mo.panel(-262.6, -98.9, Math.atan2(-3.72, 7.56), 1.5, DA + 0.3, DA + 1.2, 0.06, WHR);
+  // Badeleiter mit Podest an der Seeseite
+  Mo.prism([[-251.2, -118.75], [-249.4, -119.45], [-250.0, -121.0], [-251.8, -120.3]], -1.5, 1.1, CONC, TOPC); Mo.railLine([[-251.8, -120.3], [-250.0, -121.0], [-249.4, -119.45]], 1.1, 0.95, RAIL);
+  Mo.place(0, 0, 0, 0);
+  POLYZ.push({ p: MA, y: DA }, { p: MB, y: DB }, { c: CB, r: RD, y: TD }, { c: CB, r: RR, y: TR });          // Mole und Bastion sind im POV-Modus begehbar
+
+  // --- Hauptgebäude: zweigeschossiger Ring um den Innenhof, rote Pultdächer mit Gefälle zum Hof
+  var B = Kit(), base = 6.2 * VEX, X0b = -280, X1b = -260.5, Y0b = -45.5, Y1b = -23.3, CX0 = -272.6, CX1 = -266, CY0 = -39.6, CY1 = -30, GF = 3.0, EV = 6.05, TWx = -274.3, TWy = -47.0, i, u, v;
+  B.box(X0b, X1b, CY1, Y1b, -5, EV, WH); B.box(X0b, CX0, CY0, CY1, -5, EV, WH); B.box(CX1, X1b, CY0, CY1, -5, EV, WH); B.box(X0b, X1b, Y0b + 1.9, CY0, -5, EV, WH);
+  B.box(CX0, CX1, CY0, CY1, -5, 0.02, '#e3e6dc');                                                    // Hofboden
+  B.sphere((CX0 + CX1) / 2, (CY0 + CY1) / 2, 1.3, 1.5, '#86d06f', 0.85);                             // Grün im Innenhof
+  // Dach: vier Flächen, außen hoch, zum Hof hin fallend; weiße Stirnbretter
+  var RO = 6.9, RI = 5.95, rx0 = X0b - 0.7, rx1 = X1b + 0.7, ry0 = Y0b - 1.3, ry1 = Y1b + 0.7, qx0 = CX0 + 0.35, qx1 = CX1 - 0.35, qy0 = CY0 + 0.35, qy1 = CY1 - 0.35;
+  B.quad([TWx, RO, ry0], [rx1, RO, ry0], [qx1, RI, qy0], [TWx, RI, qy0], RED);
+  B.quad([rx1, RO, ry0], [rx1, RO, ry1], [qx1, RI, qy1], [qx1, RI, qy0], RED);
+  B.quad([rx1, RO, ry1], [rx0, RO, ry1], [qx0, RI, qy1], [qx1, RI, qy1], RED);
+  B.quad([rx0, RO, ry1], [rx0, RO, CY0], [qx0, RI, CY0], [qx0, RI, qy1], RED);
+  B.box(TWx, rx1, ry0 - 0.05, ry0 + 0.05, RO - 0.26, RO + 0.02, WHR); B.box(rx0, rx1, ry1 - 0.05, ry1 + 0.05, RO - 0.26, RO + 0.02, WHR); B.box(rx0 - 0.05, rx0 + 0.05, CY0, ry1, RO - 0.26, RO + 0.02, WHR); B.box(rx1 - 0.05, rx1 + 0.05, ry0, ry1, RO - 0.26, RO + 0.02, WHR);
+  B.box(qx0, qx1, qy0 - 0.04, qy0 + 0.04, RI - 0.2, RI + 0.02, WHR); B.box(qx0, qx1, qy1 - 0.04, qy1 + 0.04, RI - 0.2, RI + 0.02, WHR); B.box(qx0 - 0.04, qx0 + 0.04, qy0, qy1, RI - 0.2, RI + 0.02, WHR); B.box(qx1 - 0.04, qx1 + 0.04, qy0, qy1, RI - 0.2, RI + 0.02, WHR);
+  [-278.3, -275.7].forEach(function (x) { var yr = RO - (x - rx0) / (qx0 - rx0) * (RO - RI); for (v = -37.4; v < -25.5; v += 2.2) B.box(x - 0.5, x + 0.5, v - 0.62, v + 0.62, yr, yr + 0.1, '#f7f7f3'); });
+  B.box(-263.0, -262.2, -33.7, -32.9, 6.2, 7.6, '#cfcabd'); B.box(-263.1, -262.1, -33.8, -32.8, 7.6, 7.75, '#b9b4a7');
+  // Uhrenturm an der Südwestecke: höher, eigenes Pultdach, rote Uhr, Fenstertür mit Gitter; davor der verglaste Laden mit Vordach bis zum Tor
+  B.vquad([X0b, TWy], [TWx, TWy], -5, 7.3, -5, 7.95, WH, [0, -1]); B.vquad([X0b, CY0], [TWx, CY0], -5, 7.3, -5, 7.95, WH, [0, 1]); B.vquad([X0b, TWy], [X0b, CY0], -5, 7.3, -5, 7.3, WH, [-1, 0]); B.vquad([TWx, TWy], [TWx, CY0], -5, 7.95, -5, 7.95, WH, [1, 0]);
+  B.quad([X0b - 0.7, 7.22, TWy - 0.8], [TWx + 0.7, 8.05, TWy - 0.8], [TWx + 0.7, 8.05, CY0 + 0.7], [X0b - 0.7, 7.22, CY0 + 0.7], RED);
+  B.box(X0b - 0.76, X0b - 0.64, TWy - 0.8, CY0 + 0.7, 7.0, 7.24, WHR); B.box(TWx + 0.64, TWx + 0.76, TWy - 0.8, CY0 + 0.7, 7.83, 8.07, WHR);
+  [TWy - 0.8, CY0 + 0.7].forEach(function (vv) { B.add(new THREE.BoxGeometry(Math.hypot(7.1, 0.83), 0.24, 0.1), WHR, (X0b + TWx) / 2, 7.52, -vv, 0, 0, Math.atan2(0.83, 7.1)); });
+  B.add(new THREE.CylinderGeometry(0.68, 0.68, 0.07, 30), '#dc5a4c', -278.4, 5.9, -(TWy - 0.04), 0, Math.PI / 2); B.add(new THREE.CylinderGeometry(0.54, 0.54, 0.07, 30), WHR, -278.4, 5.9, -(TWy - 0.08), 0, Math.PI / 2);
+  B.box(-278.43, -278.37, TWy - 0.16, TWy - 0.11, 5.9, 6.32, '#4b4f52'); B.box(-278.4, -278.0, TWy - 0.16, TWy - 0.11, 5.87, 5.93, '#4b4f52');
+  B.win('s', -275.7, TWy, 4.3, 1.0, 2.0, { fill: '#b98c62', frame: WHR, f: 0.1 }); B.rail(-276.4, TWy - 0.16, -275.0, TWy - 0.16, 4.25, 4.25, 0.9, WHR, { pickets: true, th: 0.05 });
+  B.box(X0b - 0.4, TWx - 0.1, TWy - 1.8, TWy, -5, 0.3, WH); B.box(X0b - 0.3, TWx - 0.2, TWy - 1.7, TWy, 0.3, 2.75, 'GLASS'); B.box(X0b - 0.4, TWx - 0.1, TWy - 1.8, TWy, 2.75, 2.9, WHR);
+  for (u = X0b - 0.3; u <= TWx - 0.1; u += 1.38) B.box(u - 0.06, u + 0.06, TWy - 1.76, TWy - 1.64, 0.3, 2.75, WHR);
+  [TWy - 0.85, TWy - 0.02].forEach(function (vv) { B.box(X0b - 0.36, X0b - 0.24, vv - 0.06, vv + 0.06, 0.3, 2.75, WHR); B.box(TWx - 0.26, TWx - 0.14, vv - 0.06, vv + 0.06, 0.3, 2.75, WHR); });
+  B.box(-285.6, TWx + 0.4, TWy - 2.5, TWy + 0.7, 2.9, 3.06, '#f4f3ee'); [[-285.3, TWy - 2.2], [-285.3, TWy + 0.4], [-282.9, TWy - 2.2]].forEach(function (c) { B.cyl(c[0], c[1], 0.06, 0.06, -1.5, 2.9, MINT, 8); });
+  B.rail(-283.5, TWy + 0.5, X0b - 0.45, TWy + 0.5, -0.4, -0.4, 1.9, WHR, { pickets: true });
+  // Südflügel: offener Laubengang auf schlanken Stützen, farbige Kabinentüren, Außentreppe
+  B.box(TWx, X1b, Y0b - 0.02, Y0b + 1.9, -5, 0.1, WH2); B.box(TWx, X1b, Y0b - 0.78, Y0b + 1.9, GF - 0.1, GF + 0.12, WH2);
+  [-273.3, -270.35, -267.4].forEach(function (x) { B.box(x - 0.07, x + 0.07, Y0b - 0.67, Y0b - 0.53, 0.1, GF - 0.1, MINT); });
+  [-273.3, -270.35, -267.4, -264.45, -261.5].forEach(function (x) { B.box(x - 0.06, x + 0.06, Y0b - 0.66, Y0b - 0.54, GF + 0.12, RO - 0.3, MINT); });
+  B.rail(TWx, Y0b - 0.7, -265.9, Y0b - 0.7, GF + 0.12, GF + 0.12, 1.0, WHR, { pickets: true });
+  var DOORS = ['#f4e391', '#bfe2a2', '#a9d4ea', '#f6caa4'];
+  for (i = 0, u = -273.6; u < -266.4; u += 1.45, i++) { B.slab('s', u - 0.5, u + 0.5, GF + 0.2, GF + 2.25, Y0b + 1.9, 0.05, DOORS[i % 4]); B.slab('s', u - 0.5, u + 0.5, 0.2, 2.25, Y0b + 1.9, 0.05, i % 2 ? '#d6dcdd' : '#c3ccd0'); }
+  B.slab('s', -266.0, -263.3, GF + 0.15, EV - 0.25, Y0b + 1.9, 0.05, '#f4e391'); B.slab('s', -263.1, -260.6, GF + 0.15, EV - 0.25, Y0b + 1.9, 0.05, '#c6e39a');
+  for (i = 0; i < 10; i++) B.box(-269.2 - (i + 1) * 0.4, -269.2 - i * 0.4, Y0b + 0.15, Y0b + 1.25, 0, (i + 1) * 0.31, WH2);
+  B.rail(-269.2, Y0b + 0.15, -273.2, Y0b + 0.15, 0.31, 3.1, 0.95, WHR, { pickets: true, th: 0.05 });
+  // Ost-, Nord- und Westfassade: graue Plattenverkleidung, Loggien mit Gitter, Türen
+  B.slab('e', -41.2, -27.3, 0.15, EV - 0.12, X1b, 0.06, GREY);
+  [-38.4, -33.9, -29.4].forEach(function (vv) { B.slab('e', vv - 0.55, vv + 0.55, GF + 0.3, GF + 2.6, X1b, 0.09, '#93a7ae'); B.rail(X1b + 0.14, vv - 0.6, X1b + 0.14, vv + 0.6, GF + 0.3, GF + 0.3, 0.95, WHR, { pickets: true, th: 0.05 }); });
+  [-36.1, -31.6].forEach(function (vv) { B.slab('e', vv - 0.5, vv + 0.5, 0.15, 2.3, X1b, 0.09, '#b4c1c6'); });
+  B.box(X1b, X1b + 2.1, -37.5, -34.6, 2.45, 2.57, '#e6e8e6'); B.box(X1b + 0.15, X1b + 1.8, -37.2, -34.9, -2, 1.9, GREY2);
+  B.slab('n', X0b + 4.2, X1b - 0.3, 0.15, EV - 0.12, Y1b, 0.06, GREY);
+  for (u = -274.2; u < -261.5; u += 2.5) { B.win('n', u, Y1b + 0.06, GF + 0.9, 1.1, 1.3, { frame: WHR, f: 0.1, t: 0.08 }); B.slab('n', u - 0.45, u + 0.45, 0.15, 2.2, Y1b + 0.06, 0.05, '#b4c1c6'); }
+  for (v = -37.2; v < -24.5; v += 2.9) { B.win('w', v, X0b, GF + 0.9, 1.2, 1.3, { frame: WHR, f: 0.1, t: 0.08, bars: true }); B.win('w', v, X0b, 0.95, 1.2, 1.35, { frame: WHR, f: 0.1, t: 0.08, bars: true }); }
+  // Rundbau an der Südostecke: verglaster Kiosk, darüber die Dachterrasse mit Gitter und Sonnenschirmen
+  var RC = [-260.9, -46.6], R0 = 5.0, pr, pq;
+  B.cyl(RC[0], RC[1], R0, R0, -5, GF, WH, 56); B.ring(RC[0], RC[1], R0 + 0.03, 0.95, 2.4, 'GLASS'); B.ring(RC[0], RC[1], R0 + 0.06, 0.82, 0.95, WHR); B.ring(RC[0], RC[1], R0 + 0.06, 2.4, 2.52, WHR);
+  for (a = 0; a < 360; a += 15) { pr = polar(RC, R0 + 0.05, a); if (pr[1] > Y0b + 1.6 && pr[0] < X1b) continue; B.add(new THREE.BoxGeometry(0.1, 1.45, 0.1), WHR, pr[0], 1.675, -pr[1], -a * Math.PI / 180); }
+  B.cyl(RC[0], RC[1], R0 + 0.6, R0 + 0.6, GF - 0.1, GF + 0.14, WH2, 56);
+  for (a = 0; a < 360; a += 10) { pr = polar(RC, R0 + 0.46, a); pq = polar(RC, R0 + 0.46, a + 10); if ((pr[1] > Y0b - 0.6 && pr[0] < X1b + 0.2) || (pq[1] > Y0b - 0.6 && pq[0] < X1b + 0.2)) continue; B.rail(pr[0], pr[1], pq[0], pq[1], GF + 0.14, GF + 0.14, 1.0, WHR, { pickets: true, th: 0.05 }); }
+  [[-263.3, -49.2], [-260.3, -50.4], [-257.7, -48.3]].forEach(function (c) { parasol(B, c[0], c[1], GF + 0.14, 1.5, ORANGE, false); });
+  // Holzdeck der Terrasse mit weißen Schirmen und Tischen
+  B.box(X0b - 0.4, -255.2, -59.3, Y0b - 0.02, -5, -0.26, WOOD); B.box(X0b - 0.45, -255.15, -59.35, -59.2, -5, -0.3, '#c2ac8c');
+  [[-277.4, -53.0, 3.0], [-277.2, -57.3, 2.1], [-271.0, -56.4, 2.7], [-266.9, -56.3, 2.95], [-258.9, -56.4, 2.5]].forEach(function (c) {
+    parasol(B, c[0], c[1], -0.26, c[2], '#fdfcf8', true);
+    [[-1.1, 0.5], [1.0, -0.7], [0.2, 1.1]].forEach(function (o) { B.cyl(c[0] + o[0], c[1] + o[1], 0.06, 0.06, -0.26, 0.42, '#9aa3a6', 6); B.cyl(c[0] + o[0], c[1] + o[1], 0.42, 0.42, 0.42, 0.5, '#b88a68', 12); });
+  });
+  B.place(0, 0, base, 0);
+
+  // --- Kabinentrakt im Westen (drei eingeschossige Bauten, dem Hang folgend): Kassenpavillon, hellblaue Kabinen, weißer Kopfbau mit Bullauge
+  function ccw(p) { var s = 0; for (var n = 0; n < p.length; n++) s += p[n][0] * p[(n + 1) % p.length][1] - p[(n + 1) % p.length][0] * p[n][1]; return s > 0 ? 1 : -1; }
+  function onEdge(K, poly, e, s, w, y0, y1, t, col) {
+    var p = poly[e], q = poly[(e + 1) % poly.length], dx = q[0] - p[0], dy = q[1] - p[1], l = Math.hypot(dx, dy), f = ccw(poly), ox = dy / l * f, oy = -dx / l * f, at = s < 0 ? l + s : s;
+    K.panel(p[0] + dx / l * at + ox * t * 0.45, p[1] + dy / l * at + oy * t * 0.45, Math.atan2(dy, dx), w, y0, y1, t, col); return l;
+  }
+  function glazing(K, poly, e, y0, y1, m0, m1) {
+    var p = poly[e], q = poly[(e + 1) % poly.length], l = Math.hypot(q[0] - p[0], q[1] - p[1]), a0 = m0 === undefined ? 0.45 : m0, a1 = l - (m1 === undefined ? 0.45 : m1), n = Math.max(1, Math.round((a1 - a0) / 1.25));
+    onEdge(K, poly, e, (a0 + a1) / 2, a1 - a0, y0, y1, 0.08, 'GLASS'); onEdge(K, poly, e, (a0 + a1) / 2, a1 - a0 + 0.2, y0 - 0.12, y0, 0.16, WHR); onEdge(K, poly, e, (a0 + a1) / 2, a1 - a0 + 0.2, y1, y1 + 0.12, 0.16, WHR);
+    for (var k = 0; k <= n; k++) onEdge(K, poly, e, a0 + (a1 - a0) * k / n, 0.1, y0, y1, 0.14, WHR);
+  }
+  function block(poly, wallCol, h, over, deco) {
+    var K = Kit(), b = -1e9; poly.forEach(function (p) { b = Math.max(b, H(p[0], p[1])); });
+    K.prism(poly, -6, h, wallCol); K.prism(K.offset(poly, 0.06), -6, 0.28, WH2); K.prism(K.offset(poly, over), h, h + 0.2, '#f3f2ed', '#e8e8e2'); K.prism(K.offset(poly, over + 0.03), h + 0.02, h + 0.16, WHR);
+    if (deco) deco(K, h); K.place(0, 0, b, 0);
+  }
+  var NB = [[-294.7, -39.3], [-284.5, -40.2], [-284.8, -43.8], [-283.6, -44.2], [-283.7, -47.6], [-288.6, -47.1], [-297.2, -47.1]];
+  var MS = [[-297.2, -47.1], [-288.6, -47.1], [-291.1, -55.7], [-290.0, -56.0], [-290.9, -58.6], [-293.8, -57.8], [-295.2, -61.9], [-301.1, -59.8]];
+  var SB = [[-301.1, -59.8], [-289.2, -64.2], [-291.4, -70.4], [-303.3, -66.0]];
+  block(NB, WH, 2.95, 0.5, function (K, h) {
+    glazing(K, NB, 1, 0.95, 2.35); glazing(K, NB, 3, 0.95, 2.35, 0.3, 0.3); glazing(K, NB, 4, 0.95, 2.35); glazing(K, NB, 0, 1.3, 2.35, 1.2, 1.2);
+    K.box(-291.9, -288.4, -42.45, -41.5, h + 0.2, h + 0.27, PANEL); K.box(-291.9, -288.4, -44.35, -43.4, h + 0.2, h + 0.27, PANEL);
+  });
+  block(MS, BLUE, 2.8, 0.55, function (K, h) {
+    var l = Math.hypot(2.5, 8.6), s; for (s = 0.95; s < l - 0.5; s += 1.5) onEdge(K, MS, 1, s, 0.86, 0.3, 2.3, 0.07, WHR);
+    onEdge(K, MS, 5, 2.1, 1.7, 0.3, 2.3, 0.07, WHR); onEdge(K, MS, 5, 2.1, 0.05, 0.3, 2.3, 0.09, BLUE);
+    onEdge(K, MS, 1, l / 2, l - 0.3, 2.42, 2.62, 0.09, WHR);
+    var wd = [-0.3221, -0.9467], wn = [0.9467, -0.3221], dir = Math.atan2(wd[1], wd[0]);
+    [[1.9, 14.7, 11.2], [4.0, 14.7, 11.2], [6.1, 12.6, 7.2]].forEach(function (c) { K.add(new THREE.BoxGeometry(c[2], 0.07, 1.15), PANEL, -294.7 + wd[0] * c[1] + wn[0] * c[0], h + 0.24, -(-39.3 + wd[1] * c[1] + wn[1] * c[0]), dir); });
+  });
+  block(SB, WH, 3.1, 0.5, function (K, h) {
+    var p = SB[1], q = SB[2], l = Math.hypot(q[0] - p[0], q[1] - p[1]), ox = (q[1] - p[1]) / l * ccw(SB), oy = -(q[0] - p[0]) / l * ccw(SB), cx = p[0] + (q[0] - p[0]) * 0.72, cy = p[1] + (q[1] - p[1]) * 0.72, th = Math.atan2(ox, -oy);
+    K.add(new THREE.CylinderGeometry(0.6, 0.6, 0.1, 26), WHR, cx + ox * 0.04, 1.75, -(cy + oy * 0.04), th, Math.PI / 2); K.add(new THREE.CylinderGeometry(0.44, 0.44, 0.1, 26), 'GLASS', cx + ox * 0.08, 1.75, -(cy + oy * 0.08), th, Math.PI / 2);
+    onEdge(K, SB, 1, 1.5, 0.9, 0.3, 2.3, 0.07, '#cdd8dc'); glazing(K, SB, 2, 1.0, 2.3, 1.2, 4.8); glazing(K, SB, 0, 1.4, 2.3, 6.5, 0.8);
+  });
+  // Kajaks im Hof
+  var G = Kit(); G.glow = 0; [[-287.6, -50.4, '#e9705c'], [-287.1, -51.7, '#f2c15a'], [-287.5, -53.0, '#e9705c']].forEach(function (c) { var g = new THREE.SphereGeometry(1, 12, 8); g.scale(2.1, 0.2, 0.36); G.add(g, c[2], c[0], H(c[0], c[1]) + 0.45, -c[1], 1.25); });
+  G.place(0, 0, 0, 0);
+})();
+
+// ---------- Nutz- und Blumengarten, Bänke und Kleinteile (Koordinaten direkt in Metern, Höhe aus dem Gelände) ----------
+(function () {
+  var K = Kit(), ROSE = ['#f08c8c', '#f6b6c8', '#fbf3e6', '#e86a7a'], i = 0; K.glow = 0;
+  function at(x, y) { return H(x, y); }
+  // Lavendel entlang der Innenkanten der beiden Quartiere
+  var LAV = ['#b9a0e6', '#a98bdc', '#c3aeee'], rl = rng(77);
+  function lav(x, y) { var g = at(x, y), r = 0.5 + rl() * 0.14; K.sphere(x, y, g + 0.16, r * 0.92, '#a9cf9a', 0.5); K.sphere(x, y, g + 0.36, r, LAV[i++ % 3], 0.62); }
+  [[-153.6, -129.2], [-126.2, -101.2]].forEach(function (r, n) {
+    var x0 = r[0] + 2.3, x1 = r[1] - 2.3, y0 = 23.5 + ((r[0] + r[1]) / 2 + 179.4) * 0.0339 + 2.8, y1 = 39.6 + (n ? 1.0 : 0) - 2.4, x, y, mid = (x0 + x1) / 2;
+    for (x = x0; x <= x1 + 0.05; x += (x1 - x0) / 15) { lav(x, y1); if (Math.abs(x - mid) > 1.7) lav(x, y0); }
+    for (y = y0 + 1.5; y < y1 - 1.0; y += (y1 - y0 - 3) / 5.01) { lav(x0, y); lav(x1, y); }
+  });
+  K.glow = 1.7;
+  // Rundbeet auf dem Kiesplatz: Gitter mit Bogenabschluss, außen ein Kranz silbriger Polsterstauden, innen ein abgesenktes Becken mit Stufen, Steinen und Gräsern
+  var bx = -127.6, by = 22.4, g1 = at(bx, by), fa, fr = 2.25;
+  K.ring(bx, by, fr, g1 + 0.7, g1 + 0.75, IRON); K.ring(bx, by, fr, g1 + 0.12, g1 + 0.17, IRON);
+  for (fa = 0; fa < 6.28; fa += 0.131) { K.box(bx + fr * Math.cos(fa) - 0.022, bx + fr * Math.cos(fa) + 0.022, by + fr * Math.sin(fa) - 0.022, by + fr * Math.sin(fa) + 0.022, g1, g1 + 0.86, IRON); K.add(new THREE.TorusGeometry(0.147, 0.02, 4, 8, Math.PI), IRON, bx + fr * Math.cos(fa + 0.0655), g1 + 0.86, -(by + fr * Math.sin(fa + 0.0655)), fa + 0.0655 + Math.PI / 2); }
+  for (fa = 0; fa < 6.28; fa += 0.785) K.box(bx + fr * Math.cos(fa) - 0.05, bx + fr * Math.cos(fa) + 0.05, by + fr * Math.sin(fa) - 0.05, by + fr * Math.sin(fa) + 0.05, g1, g1 + 1.0, IRON);
+  K.glow = 0.55; for (fa = 0.2; fa < 6.28; fa += 0.37) K.sphere(bx + 2.8 * Math.cos(fa), by + 2.8 * Math.sin(fa), g1 + 0.22, 0.52 + 0.1 * Math.sin(fa * 5), fa % 0.74 < 0.37 ? '#c9d8cb' : '#bccfc0', 0.62);
+  K.glow = 1.7; K.cyl(bx, by - 0.25, 1.3, 1.3, g1 - 0.4, g1 + 0.22, '#dedbcf', 28); K.cyl(bx, by - 0.25, 1.08, 1.08, g1 + 0.22, g1 + 0.23, '#c9c6b8', 28);
+  K.box(bx + 0.75, bx + 1.75, by + 0.1, by + 0.75, g1, g1 + 0.38, '#e3e0d4'); K.box(bx + 0.95, bx + 1.85, by + 0.55, by + 1.15, g1, g1 + 0.56, '#e3e0d4');
+  [[-1.25, 0.75, 0.3], [-0.75, 1.2, 0.27], [-0.15, 1.35, 0.32], [0.45, 1.25, 0.26], [-1.55, 0.2, 0.25]].forEach(function (c) { K.sphere(bx + c[0], by + c[1], g1 + 0.24, c[2], '#cfc5b0', 0.8); });
+  [[-1.0, 1.55, 0.45, '#9ccf7c'], [-0.2, 1.75, 0.5, '#8cc66f'], [0.55, 1.75, 0.4, '#b9cfa8'], [-1.65, 0.95, 0.38, '#b9cfa8'], [-1.5, -0.9, 0.36, '#9ccf7c'], [1.5, -0.9, 0.34, '#b9cfa8']].forEach(function (c) { K.sphere(bx + c[0], by + c[1], g1 + 0.3, c[2], c[3], 0.8); });
+  [[-0.6, 1.5], [0.2, 1.55], [-1.45, -0.5]].forEach(function (c) { K.sphere(bx + c[0], by + c[1], g1 + 0.62, 0.11, '#f2a04e'); });
+  K.glow = 1.1;
+  // Brunnen am Ostende des Laubengangs: achteckiger Steintrog mit Sockel und breitem Abdeckstein, vertiefter Wasserspiegel,
+  // achteckiger Brunnenstock mit Bändern und ausladendem Kapitell, Auslaufrohr mit Wasserstrahl; dahinter niedrige Kettenpfosten
+  var sx = -92, sy = 25.6, g2 = at(sx, sy), WALLC = '#ddd4c0', RIMC = '#f6f0e0', PLC = '#e9e1cd', WAT = '#8fd3f2', O8 = Math.PI / 8;
+  function oct(x, y, rb, rt, y0, y1, col, open) { K.add(new THREE.CylinderGeometry(rt, rb, y1 - y0, 8, 1, !!open), col, x, g2 + (y0 + y1) / 2, -y, O8); }
+  function octRing(x, y, ri, ro, yy, col) { var q = new THREE.RingGeometry(ri, ro, 8, 1); q.rotateX(-Math.PI / 2); K.add(q, col, x, g2 + yy, -y, O8); }
+  oct(sx, sy, 1.2, 1.2, -0.3, 0.13, PLC); oct(sx, sy, 1.2, 1.12, 0.13, 0.19, PLC);                       // Sockel mit Fase
+  oct(sx, sy, 1.09, 1.09, 0.19, 0.8, WALLC, true);                                                      // Trogwand
+  octRing(sx, sy, 1.09, 1.22, 0.8, RIMC); oct(sx, sy, 1.22, 1.22, 0.8, 0.95, RIMC, true); octRing(sx, sy, 0.86, 1.22, 0.95, RIMC);   // Abdeckstein
+  oct(sx, sy, 0.86, 0.86, 0.6, 0.95, '#cfc6b1', true);                                                  // Innenwand
+  var wq = new THREE.CircleGeometry(0.86, 8); wq.rotateX(-Math.PI / 2); K.add(wq, WAT, sx, g2 + 0.76, -sy, O8);
+  for (var gk = -2; gk <= 2; gk++) K.box(sx - 0.62, sx + 0.62, sy + gk * 0.26 - 0.025, sy + gk * 0.26 + 0.025, g2 + 0.765, g2 + 0.775, '#a9dcf4');   // Rost unter dem Wasser
+  var cx = sx + 1.34;                                                                                   // Brunnenstock
+  oct(cx, sy, 0.27, 0.27, -0.3, 0.16, PLC); oct(cx, sy, 0.27, 0.215, 0.16, 0.22, PLC); oct(cx, sy, 0.215, 0.215, 0.22, 1.72, WALLC);
+  [1.02, 1.5].forEach(function (yy) { oct(cx, sy, 0.235, 0.235, yy, yy + 0.06, RIMC); });
+  oct(cx, sy, 0.215, 0.31, 1.72, 1.86, RIMC); oct(cx, sy, 0.33, 0.33, 1.86, 1.98, RIMC); oct(cx, sy, 0.33, 0.25, 1.98, 2.04, RIMC);
+  K.add(new THREE.CylinderGeometry(0.085, 0.085, 0.03, 12), '#7d8588', cx - 0.21, g2 + 1.26, -sy, 0, 0, Math.PI / 2);
+  K.add(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 8), '#7d8588', cx - 0.37, g2 + 1.26, -sy, 0, 0, Math.PI / 2);
+  K.add(new THREE.CylinderGeometry(0.018, 0.026, 0.5, 6), '#b9e4f8', cx - 0.54, g2 + 1.01, -sy);        // Wasserstrahl
+  var pp = null; [-75, -45, -15, 15, 45, 75].forEach(function (dg) {                                     // Kettenpfosten am Rasenrand
+    var an = dg * Math.PI / 180, px = sx + 3.25 * Math.cos(an), py = sy + 3.25 * Math.sin(an), pg = at(px, py);
+    K.cyl(px, py, 0.03, 0.03, pg, pg + 0.55, IRON, 6); K.sphere(px, py, pg + 0.58, 0.05, IRON);
+    if (pp) K.rail(pp[0], pp[1], px, py, pp[2] + 0.4, pg + 0.4, 0.02, IRON, { th: 0.025, every: 99 });
+    pp = [px, py, pg];
+  });
+  K.glow = 0.8;
+  var fx = -128.3, fy = 50.5, g3 = at(fx, fy); K.cyl(fx, fy, 1.7, 1.6, g3, g3 + 0.45, '#d6d2c4', 20); K.cyl(fx, fy, 1.4, 1.4, g3 + 0.45, g3 + 0.5, 'GLASS', 20); K.cyl(fx, fy, 0.18, 0.14, g3 + 0.45, g3 + 1.1, '#d6d2c4', 8); K.cyl(fx, fy, 0.5, 0.45, g3 + 1.1, g3 + 1.2, '#d6d2c4', 12);
+  K.glow = 0;
+  // Bänke an der Lindenallee und an der Friedenssäule (Blick zum See)
+  function bench(x, y, col) { var g = at(x, y); K.box(x - 0.95, x + 0.95, y - 0.24, y + 0.24, g + 0.4, g + 0.5, col); K.box(x - 0.95, x + 0.95, y + 0.2, y + 0.28, g + 0.5, g + 0.95, col); K.box(x - 0.85, x - 0.75, y - 0.2, y + 0.24, g, g + 0.4, '#70767a'); K.box(x + 0.75, x + 0.85, y - 0.2, y + 0.24, g, g + 0.4, '#70767a'); }
+  [[-86, -57.4], [-58, -56.9], [-24, -55.6], [41, -53.6], [11.6, -57.4], [23.4, -57.2]].forEach(function (b) { if (!inLake(b[0], b[1] - 1)) bench(b[0], b[1], '#b8563f'); });
+  // niedrige Buchshecken um die beiden Rosenquartiere, in Abschnitten dem Gelände folgend
+  function upY(x) { return 23.5 + (x + 179.4) * 0.0339; }
+  [[-153.6, -129.2], [-126.2, -101.2]].forEach(function (r, n) {
+    var hx0 = r[0] + 1.1, hx1 = r[1] - 1.1, hy0 = upY((r[0] + r[1]) / 2) + 1.6, hy1 = 39.6 + (n ? 1.0 : 0) - 1.2, x, y, g;
+    for (x = hx0; x < hx1 - 0.01; x += (hx1 - hx0) / 8) { var xe = x + (hx1 - hx0) / 8; [hy0, hy1].forEach(function (yy) { if (yy === hy0 && Math.abs((x + xe) / 2 - (hx0 + hx1) / 2) < 1.6) return; g = at((x + xe) / 2, yy); K.box(x, xe, yy - 0.35, yy + 0.35, g - 0.5, g + 0.6, '#6fbd5c'); }); }
+    for (y = hy0; y < hy1 - 0.01; y += (hy1 - hy0) / 4) { var ye = y + (hy1 - hy0) / 4; [hx0, hx1].forEach(function (xx) { g = at(xx, (y + ye) / 2); K.box(xx - 0.35, xx + 0.35, y, ye, g - 0.5, g + 0.6, '#6fbd5c'); }); }
+  });
+  K.place(0, 0, 0, 0);
+  // Laubengang: schlanke Metallbögen über dem oberen Querweg, im Westen dicht mit Wein bewachsen, sonst nur einseitig berankt
+  var A = Kit(); A.glow = 0; var rv = rng(41), x, AR = 1.5, LEG = 1.75, VINE = ['#8fd46f', '#9ada7a', '#84cc68'];
+  function archAt(px) {
+    var py = 23.5 + (px + 179.4) * 0.0339, g = Math.max(H(px, py - AR), H(px, py + AR)), full = px < -150, k;
+    A.add(new THREE.TorusGeometry(AR, 0.055, 5, 22, Math.PI), IRON, px, g + LEG, -py, Math.PI / 2);
+    A.cyl(px, py - AR, 0.055, 0.055, g - 1.2, g + LEG, IRON, 6); A.cyl(px, py + AR, 0.055, 0.055, g - 1.2, g + LEG, IRON, 6);
+    if (full) { for (k = 0; k <= 8; k++) { var t = k / 8 * Math.PI; A.sphere(px + (rv() - 0.5) * 0.5, py + Math.cos(t) * AR, g + LEG + Math.sin(t) * AR, 0.46 + rv() * 0.14, VINE[k % 3], 0.85); } }
+    [-1, 1].forEach(function (sd) { if (!full && (sd < 0 || rv() < 0.3)) return; var n = full ? 3 : 2 + Math.floor(rv() * 2); for (k = 0; k < n; k++) A.sphere(px + (rv() - 0.5) * 0.4, py + sd * AR, g + 0.45 + k * 0.72, 0.36 + rv() * 0.12, VINE[(k + (sd > 0 ? 1 : 0)) % 3], 1.15); });
+  }
+  for (x = -176; x <= -131.5; x += 3) archAt(x); for (x = -123.5; x <= -101; x += 3) archAt(x);
+  A.place(0, 0, 0, 0);
+})();
+
+// ---------- Bogenbrücke über den Bach: flacher Betonbogen mit weißem Stabgeländer ----------
+(function () {
+  var K = Kit(); K.glow = 0.5; var P0 = [-184.6, -43.1], P1 = [-171.6, -34.2], dx = P1[0] - P0[0], dy = P1[1] - P0[1], L = Math.hypot(dx, dy), ux = dx / L, uy = dy / L, nx = -uy, ny = ux, dir = Math.atan2(dy, dx);
+  var h0 = H(P0[0], P0[1]) - 0.15, h1 = H(P1[0], P1[1]) - 0.15, N = 16, RISE = 2.3, W = 1.05, i;
+  function at(t) { return [P0[0] + dx * t, P0[1] + dy * t, h0 + (h1 - h0) * t + RISE * 4 * t * (1 - t)]; }
+  for (i = 0; i < N; i++) {
+    var a = at(i / N), b = at((i + 1) / N), len = Math.hypot(L / N, b[2] - a[2]), sl = Math.atan2(b[2] - a[2], L / N), mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, mz = (a[2] + b[2]) / 2;
+    K.add(new THREE.BoxGeometry(len + 0.06, 0.26, 2 * W + 0.3), '#deddd4', mx, mz - 0.13, -my, dir, 0, sl); K.add(new THREE.BoxGeometry(len + 0.06, 0.05, 2 * W), '#f1efe6', mx, mz + 0.025, -my, dir, 0, sl);
+    [1, -1].forEach(function (s) { K.rail(a[0] + nx * W * s, a[1] + ny * W * s, b[0] + nx * W * s, b[1] + ny * W * s, a[2], b[2], 1.05, '#ffffff', { pickets: true, th: 0.06 }); });
+  }
+  K.place(0, 0, 0, 0);
+  POLYZ.push({ over: true, f: function (x, y) { var t = ((x - P0[0]) * dx + (y - P0[1]) * dy) / (L * L); return t < 0 || t > 1 || Math.abs((x - P0[0]) * nx + (y - P0[1]) * ny) > W ? null : at(t)[2]; } });   // über die Brücke gehen, darunter durch bleibt möglich
+})();
+
+// ---------- Badefloß vor dem Lindenhofbad: Holzdeck auf Schwimmkörpern, Einstiegsleiter mit zwei Edelstahlbügeln ----------
+(function () {
+  var K = Kit(); K.glow = 0.5; var HW = 2.1, TOP = 0.46, WOOD = '#e0c79c', WOOD2 = '#cfb284', STEEL = '#c9d1d6', i;
+  K.box(-HW + 0.25, HW - 0.25, -HW + 0.25, HW - 0.25, -0.25, 0.1, '#4d5a63');                                   // Schwimmkörper
+  K.box(-HW, HW, -HW, HW, 0.08, TOP - 0.19, WOOD2); K.box(-HW - 0.02, HW + 0.02, -HW - 0.02, HW + 0.02, TOP - 0.19, TOP - 0.17, '#b89a6c'); K.box(-HW, HW, -HW, HW, TOP - 0.17, TOP, WOOD);
+  for (i = -6; i <= 6; i++) K.box(-HW, HW, i * 0.3 - 0.012, i * 0.3 + 0.012, TOP, TOP + 0.006, '#c8ab7d');      // Dielenfugen
+  [-0.27, 0.27].forEach(function (v) {
+    K.cyl(1.2, v, 0.028, 0.028, TOP, 1.34, STEEL, 8); K.cyl(HW + 0.12, v, 0.028, 0.028, -0.5, 0.72, STEEL, 8);
+    var dx = HW + 0.12 - 1.2, dy = 0.72 - 1.34, L = Math.hypot(dx, dy); K.add(new THREE.CylinderGeometry(0.028, 0.028, L + 0.04, 8), STEEL, 1.2 + dx / 2, 1.34 + dy / 2, -v, 0, 0, Math.atan2(dx, -dy) + Math.PI);
+    K.sphere(1.2, v, 1.34, 0.03, STEEL); K.sphere(HW + 0.12, v, 0.72, 0.03, STEEL);
+  });
+  [0.3, 0.02].forEach(function (y) { K.box(HW + 0.06, HW + 0.2, -0.27, 0.27, y, y + 0.035, '#8f9aa0'); });
+  K.place(-329, -189, 0, 1.15);
+  ZONES.push({ x: -329, y: -189, ang: 1.15, base: 0, r: [[-HW, HW, -HW, HW, TOP]] });
+})();
+
+// ---------- ground texture ----------
+var SPANX = X1 - X0, SPANY = Y1 - Y0;
+var TW = (Math.min(window.innerWidth, window.innerHeight) > 700 && renderer.capabilities.maxTextureSize >= 4096) ? 4096 : 2048, TS = TW / SPANX, TH = Math.round(SPANY * TS);
+
+var pathMaskCv = null;
+function drawGround() {
+  var cv = document.createElement('canvas'); cv.width = TW; cv.height = TH;
+  var g = cv.getContext('2d'), s = TS;
+  function X(x) { return (x - X0) * s; } function Y(y) { return (Y1 - y) * s; }
+  function poly(p) { g.beginPath(); g.moveTo(X(p[0][0]), Y(p[0][1])); for (var i = 1; i < p.length; i++) g.lineTo(X(p[i][0]), Y(p[i][1])); g.closePath(); }
+  function line(p, round) {
+    g.beginPath(); g.moveTo(X(p[0][0]), Y(p[0][1]));
+    if (round && p.length > 2) { for (var i = 1; i < p.length - 1; i++) { var mx = (p[i][0] + p[i + 1][0]) / 2, my = (p[i][1] + p[i + 1][1]) / 2; g.quadraticCurveTo(X(p[i][0]), Y(p[i][1]), X(mx), Y(my)); } var l = p[p.length - 1]; g.lineTo(X(l[0]), Y(l[1])); }
+    else for (var j = 1; j < p.length; j++) g.lineTo(X(p[j][0]), Y(p[j][1]));
+  }
+  function disc(x, y, r, col) { g.beginPath(); g.arc(X(x), Y(y), r * s, 0, 7); g.fillStyle = col; g.fill(); }
+  function byKind(k) { return FEAT.filter(function (f) { return f.k === k; }); }
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.fillStyle = PAL.base; g.fillRect(0, 0, TW, TH);
+  // Flächen
+  byKind('park').forEach(function (f) { poly(f.p); g.fillStyle = PAL.lawn; g.fill(); });
+  byKind('scrub').forEach(function (f) { poly(f.p); g.fillStyle = PAL.scrub; g.fill(); });
+  byKind('parking').forEach(function (f) { poly(f.p); g.fillStyle = PAL.parking; g.fill(); });
+  // Höhenstufen: je höher, desto wärmer und heller; dazu feine Höhenlinien alle 2 m
+  g.save(); poly(PARK); g.clip();
+  var tc = document.createElement('canvas'); tc.width = NX; tc.height = NY; var tg = tc.getContext('2d'), tim = tg.createImageData(NX, NY), i, j, o;
+  for (j = 0; j < NY; j++) for (i = 0; i < NX; i++) { o = (j * NX + i) * 4; var hh = HG[j * NX + i]; tim.data[o] = 255; tim.data[o + 1] = 246; tim.data[o + 2] = 150; tim.data[o + 3] = Math.round(Math.pow(clamp(hh / 15, 0, 1), 1.2) * 84); }
+  tg.putImageData(tim, 0, 0); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(tc, 0, 0, NX, NY, -0.5 * ST * s, -0.5 * ST * s, NX * ST * s, NY * ST * s);
+  var HS = Float32Array.from(HG), HT = new Float32Array(HS.length), pass, ii, jj;
+  for (pass = 0; pass < 3; pass++) { for (j = 0; j < NY; j++) for (i = 0; i < NX; i++) { var acc = 0, wsum = 0; for (jj = -1; jj <= 1; jj++) for (ii = -1; ii <= 1; ii++) { var qx = i + ii, qy = j + jj; if (qx < 0 || qy < 0 || qx >= NX || qy >= NY) continue; var wq = (ii ? 1 : 2) * (jj ? 1 : 2); acc += HS[qy * NX + qx] * wq; wsum += wq; } HT[j * NX + i] = acc / wsum; } HS.set(HT); }
+  g.strokeStyle = 'rgba(52,112,42,0.17)'; g.lineWidth = 0.34 * s; g.beginPath();
+  for (var lev = 2; lev <= 14; lev += 2) for (j = 0; j < NY - 1; j++) for (i = 0; i < NX - 1; i++) {
+    var a = HS[j * NX + i], b = HS[j * NX + i + 1], c = HS[(j + 1) * NX + i + 1], d = HS[(j + 1) * NX + i], mn = Math.min(a, b, c, d), mx = Math.max(a, b, c, d); if (lev <= mn || lev > mx) continue;
+    var px = X0 + i * ST, py = Y1 - j * ST, pts = [];
+    if ((a < lev) !== (b < lev)) pts.push([px + ST * (lev - a) / (b - a), py]); if ((b < lev) !== (c < lev)) pts.push([px + ST, py - ST * (lev - b) / (c - b)]);
+    if ((d < lev) !== (c < lev)) pts.push([px + ST * (lev - d) / (c - d), py - ST]); if ((a < lev) !== (d < lev)) pts.push([px, py - ST * (lev - a) / (d - a)]);
+    for (var q2 = 0; q2 + 1 < pts.length; q2 += 2) { g.moveTo(X(pts[q2][0]), Y(pts[q2][1])); g.lineTo(X(pts[q2 + 1][0]), Y(pts[q2 + 1][1])); }
+  }
+  g.stroke(); g.restore();
+  poly(PARK); g.strokeStyle = PAL.lawnEdge; g.lineWidth = 0.7 * s; g.stroke();
+  // Wasser und Ufer
+  poly(LAKE); g.fillStyle = PAL.water; g.fill();
+  // Graben um die Ruine Degelstein und Bach unter der Brücke (Lage aus dem Höhenmodell abgelesen)
+  function weed(p, w) { line(p, true); g.strokeStyle = '#a3dc7c'; g.lineWidth = (w + 0.9) * s; g.stroke(); line(p, true); g.strokeStyle = PAL.water; g.lineWidth = w * s; g.stroke(); }
+  weed([[-228, 4.5], [-230, 1], [-234.5, -2.5], [-239.5, -6.5], [-243, -12], [-243.5, -19], [-241.5, -25], [-236, -28.5], [-226, -29.5], [-217, -27.5], [-211.5, -24.5], [-213.5, -20]], 6.4, 5);
+  weed([[-190.5, -33.5], [-186, -36], [-182.3, -40], [-178.8, -44.8], [-175.2, -50], [-172.5, -54.5], [-166.5, -58.5], [-161.5, -60.5]], 3.6, 9);
+  g.strokeStyle = PAL.shore; g.lineWidth = 5.2 * s; line(SHORE.slice(0, BAD.skip[0] + 1), false); g.stroke(); line(SHORE.slice(BAD.skip[1]), false); g.stroke();   // am Bad stehen Mauern statt Kiessaum
+  byKind('pond').forEach(function (f) { poly(f.p); g.strokeStyle = PAL.shore; g.lineWidth = 2.2 * s; g.stroke(); g.fillStyle = PAL.water; g.fill(); });
+  // Kiesplätze
+  g.save(); g.beginPath(); g.rect(0, 0, TW, TH); g.moveTo(X(LAKE[0][0]), Y(LAKE[0][1])); for (var q = 1; q < LAKE.length; q++) g.lineTo(X(LAKE[q][0]), Y(LAKE[q][1])); g.closePath(); g.clip('evenodd');
+  disc(17.4, -59.5, 4.4, PAL.gravel); disc(-153, -95, 5.2, '#e9e6d6'); disc(-127.6, 22.4, 3.5, PAL.gravel); disc(-92, 25.6, 3.3, PAL.gravel); disc(-128.3, 50.5, 2.7, PAL.gravel);
+  var vl = local(-34.7, 58.2, 0.0311); poly([vl(-13, 11.6), vl(13, 11.6), vl(13, 19.5), vl(-13, 19.5)]); g.fillStyle = PAL.gravel; g.fill(); g.lineWidth = 2.2 * s; g.strokeStyle = PAL.gravel; g.stroke();
+  // Lindenhofbad: Kiesstrand vor der Mauer, Hof zwischen Kabinentrakt und Hauptgebäude, Vorplatz der Mole
+  poly(BAD.beach); g.fillStyle = PAL.water; g.fill(); g.strokeStyle = PAL.water; g.lineWidth = 1.2 * s; g.stroke();   // der Strand selbst ist ein Bauteil
+  poly([[-284.5, -40.2], [-280, -40.2], [-280, -47.5], [-281, -60], [-283.4, -64.3], [-289.2, -64.2], [-295.2, -61.9], [-293.8, -57.8], [-290.9, -58.6], [-291.1, -55.7], [-288.6, -47.1], [-283.7, -47.6]]); g.fillStyle = '#e9e8e1'; g.fill();
+  poly(BAD.plat); g.fillStyle = '#eceae1'; g.fill(); g.strokeStyle = '#eceae1'; g.lineWidth = 2.4 * s; g.stroke();
+  g.restore();
+  // Nutz- und Blumengarten: Rabatten, Buchsrahmen, Blumeninseln
+  function lowY(x) { return 18.4 + (x + 180.3) * 0.031; } function upY(x) { return 23.5 + (x + 179.4) * 0.0339; }
+  [[-177.5, -157], [-153, -129.6], [-125.6, -101.5]].forEach(function (r) {
+    poly([[r[0], lowY(r[0]) + 1.1], [r[1], lowY(r[1]) + 1.1], [r[1], upY(r[1]) - 1.1], [r[0], upY(r[0]) - 1.1]]); g.fillStyle = PAL.bed; g.fill();
+    for (var x = r[0] + 0.9; x < r[1] - 0.4; x += 1.25) { var yb = (lowY(x) + upY(x)) / 2; disc(x, yb + 0.55 * Math.sin(x * 2.1), 0.36, ['#c9a7ea', '#f3a6bd', '#fbf4e2', '#b79be0'][Math.abs(Math.round(x * 3)) % 4]); }
+  });
+  [[-153.6, -129.2], [-126.2, -101.2]].forEach(function (r, n) {
+    var y0 = upY((r[0] + r[1]) / 2) + 1.6, y1 = 39.6 + (n ? 1.0 : 0) - 1.2, cx = (r[0] + r[1]) / 2, cy = (y0 + y1) / 2;
+    g.strokeStyle = PAL.hedge; g.lineWidth = 0.7 * s; g.strokeRect(X(r[0] + 1.1), Y(y1), (r[1] - r[0] - 2.2) * s, (y1 - y0) * s);
+  });
+  
+  // Geländeschattierung aus dem Höhenmodell
+  var sh = document.createElement('canvas'); sh.width = NX; sh.height = NY; var sg = sh.getContext('2d'), im = sg.createImageData(NX, NY);
+  for (j = 0; j < NY; j++) for (i = 0; i < NX; i++) {
+    var hx = (HG[j * NX + Math.min(NX - 1, i + 1)] - HG[j * NX + Math.max(0, i - 1)]) * VEX / (2 * ST), hy = (HG[Math.max(0, j - 1) * NX + i] - HG[Math.min(NY - 1, j + 1) * NX + i]) * VEX / (2 * ST);
+    var nl = 1 / Math.sqrt(hx * hx + 1 + hy * hy), dotl = (-hx * LDIR.x + LDIR.y + hy * LDIR.z) * nl, v = clamp(0.5 + (dotl - LDIR.y) * 1.25, 0.2, 0.76); o = (j * NX + i) * 4;
+    var gx = X0 + i * ST, gy = Y1 - j * ST; if (gx > -342 && gx < -194 && gy < -52 && gy > -108) { var cd = cliffAt(gx, gy).d; if (cd < 7) v = 0.5 + (v - 0.5) * smooth(3.5, 7, cd); }   // an den Ufermauern des Bads keine Hangschattierung
+    im.data[o] = im.data[o + 1] = im.data[o + 2] = Math.round(v * 255); im.data[o + 3] = 255;
+  }
+  sg.putImageData(im, 0, 0);
+  g.save(); g.beginPath(); g.rect(0, 0, TW, TH); g.moveTo(X(LAKE[0][0]), Y(LAKE[0][1])); for (q = 1; q < LAKE.length; q++) g.lineTo(X(LAKE[q][0]), Y(LAKE[q][1])); g.closePath(); g.clip('evenodd');   // Wasser bleibt ohne Schattierung
+  g.globalCompositeOperation = 'overlay'; g.drawImage(sh, 0, 0, NX, NY, -0.5 * ST * s, -0.5 * ST * s, NX * ST * s, NY * ST * s); g.restore();
+  // Straßen und Wege
+  var HW = byKind('hw');
+  function width(f) {
+    if (f.h === 'residential') return 5.6; if (f.h === 'service') return 3.4; if (f.h === 'track') return 3.3; if (f.h === 'steps') return 2.0;
+    if (f.id >= 984905189 && f.id <= 984905197) return 1.5; if (f.s === 'grass') return 1.2; if (f.h === 'path') return 1.6; if (f.s === 'fine_gravel') return 2.5; return 2.0;
+  }
+  var roads = HW.filter(function (f) { return f.h === 'residential'; }), ways = HW.filter(function (f) { return f.h !== 'residential' && f.id !== 51260933; });
+  roads.forEach(function (f) { line(f.p, true); g.strokeStyle = PAL.roadEdge; g.lineWidth = (width(f) + 1.3) * s; g.stroke(); });
+  roads.forEach(function (f) { line(f.p, true); g.strokeStyle = PAL.road; g.lineWidth = width(f) * s; g.stroke(); });
+  function sdf(f) { return f.h !== 'service' && f.h !== 'steps' && f.s !== 'grass'; }      // Kieswege zeichnet das Bodenmaterial selbst, gestochen scharf aus einer Abstandskarte
+  ways.forEach(function (f) { if (f.s === 'grass' || sdf(f)) return; line(f.p, f.p.length > 2); g.strokeStyle = f.h === 'service' ? '#cfd3ce' : PAL.pathEdge; g.lineWidth = (width(f) + 0.7) * s; g.stroke(); });
+  ways.forEach(function (f) { if (sdf(f)) return; line(f.p, f.p.length > 2); g.strokeStyle = f.h === 'service' ? PAL.service : (f.s === 'grass' ? '#c4ee99' : PAL.path); g.lineWidth = width(f) * s; g.stroke(); });
+  ways.forEach(function (f) { if (f.h !== 'steps') return; g.save(); line(f.p, false); g.lineCap = 'butt'; g.setLineDash([0.28 * s, 0.42 * s]); g.strokeStyle = '#cfd6c4'; g.lineWidth = 1.9 * s; g.stroke(); g.restore(); });
+  // Abstandskarte der Kieswege: Wert 0,5 an der Wegkante, je Meter nach innen +0,5 (Schatten wirft jetzt die Sonne, nicht mehr die Textur)
+  var mc = document.createElement('canvas'); mc.width = 2048; mc.height = 1024; var mg = mc.getContext('2d'); mg.fillStyle = '#000'; mg.fillRect(0, 0, 2048, 1024);
+  mg.setTransform(2048 / SPANX, 0, 0, -1024 / SPANY, -X0 * 2048 / SPANX, Y1 * 1024 / SPANY); mg.lineCap = mg.lineJoin = 'round';
+  var sw = ways.filter(sdf);
+  for (var lv = 0; lv <= 32; lv++) {
+    var dd = 1 - lv / 16; mg.strokeStyle = 'rgb(' + Math.round((0.5 - dd / 2) * 255) + ',0,0)';
+    sw.forEach(function (f) {
+      var wd = width(f) + 2 * dd, p = f.p, n; if (wd <= 0.04) return; mg.lineWidth = wd; mg.beginPath(); mg.moveTo(p[0][0], p[0][1]);
+      if (p.length > 2) { for (n = 1; n < p.length - 1; n++) mg.quadraticCurveTo(p[n][0], p[n][1], (p[n][0] + p[n + 1][0]) / 2, (p[n][1] + p[n + 1][1]) / 2); mg.lineTo(p[p.length - 1][0], p[p.length - 1][1]); } else mg.lineTo(p[1][0], p[1][1]);
+      mg.stroke();
+    });
+  }
+  pathMaskCv = mc;
+  g.save(); g.beginPath(); g.rect(0, 0, TW, TH); g.moveTo(X(LAKE[0][0]), Y(LAKE[0][1])); for (q = 1; q < LAKE.length; q++) g.lineTo(X(LAKE[q][0]), Y(LAKE[q][1])); g.closePath(); g.clip('evenodd');
+  // Uferböschung sauber halten: Kiessaum zuletzt noch einmal über Schatten und Schattierung legen
+  g.strokeStyle = PAL.shore; g.lineWidth = 5.6 * s; line(SHORE.slice(0, BAD.skip[0] + 1), false); g.stroke(); line(SHORE.slice(BAD.skip[1]), false); g.stroke();
+  function fade(x, y, w, h, x0, y0, x1, y1) { var gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, 'rgba(243,242,236,1)'); gr.addColorStop(1, 'rgba(243,242,236,0)'); g.fillStyle = gr; g.fillRect(x, y, w, h); }
+  fade(0, 0, TW, 10 * s, 0, 0, 0, 10 * s); fade(0, 0, 26 * s, TH, 0, 0, 26 * s, 0); fade(TW - 14 * s, 0, 14 * s, TH, TW, 0, TW - 14 * s, 0);
+  g.restore();
+  var tex = new THREE.CanvasTexture(cv); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return tex;
+}
+
+// ---------- terrain mesh ----------
+var groundTex = drawGround();
+var tgeo = new THREE.PlaneGeometry(SPANX, SPANY, NX - 1, NY - 1); tgeo.rotateX(-Math.PI / 2);
+(function () {
+  var p = tgeo.attributes.position, uv = tgeo.attributes.uv, cx = (X0 + X1) / 2, cy = (Y0 + Y1) / 2, i, j;
+  for (i = 0; i < p.count; i++) p.setY(i, HG[i] * VEX);
+  var RV = [], CLf = BAD.cliff;
+  for (i = 1; i < CLf.length - 1; i++) { var ax = CLf[i][0] - CLf[i - 1][0], ay = CLf[i][1] - CLf[i - 1][1], bx = CLf[i + 1][0] - CLf[i][0], by = CLf[i + 1][1] - CLf[i][1], cr = ax * by - ay * bx; if (cr < 0 && Math.abs(Math.atan2(cr, ax * bx + ay * by)) > 0.3) RV.push(CLf[i]); }
+  // Am Bad stehen Ufermauern: Netzpunkte unmittelbar vor der Mauerkante rücken genau auf die Kante, damit kein Hang ins Wasser oder auf den Strand ragt
+  for (j = 0; j < NY; j++) for (i = 0; i < NX; i++) {
+    var x = X0 + i * ST, y = Y1 - j * ST; if (x < -340 || x > -196 || y > -54 || y < -106) continue;
+    var c = cliffAt(x, y); if (c.s >= 0 || c.d > 2.95) continue;
+    for (var k = 0; k < RV.length; k++) if (Math.hypot(c.x - RV[k][0], c.y - RV[k][1]) < 2.7) { c.x = RV[k][0]; c.y = RV[k][1]; break; }   // an einspringenden Ecken auf den Eckpunkt, sonst schneidet das Netz die Ecke ab
+    var o = j * NX + i; p.setX(o, c.x - cx); p.setZ(o, -c.y + cy); p.setY(o, 0); uv.setXY(o, (c.x - c.nx * 2.2 - X0) / SPANX, (c.y - c.ny * 2.2 - Y0) / SPANY);
+  }
+  p.needsUpdate = true; uv.needsUpdate = true;
+})();
+// Lichtkarte für die Nacht: warme Lichtinseln um die Wahrzeichen und einzelne Leuchten (2 Pixel je Meter)
+var glowTex = (function () {
+  var s = 2, cv = document.createElement('canvas'); cv.width = Math.round(SPANX * s); cv.height = Math.round(SPANY * s);
+  var g = cv.getContext('2d'), far = 4000;
+  function X(x) { return (x - X0) * s; } function Y(y) { return (Y1 - y) * s; }
+  g.fillStyle = '#000'; g.fillRect(0, 0, cv.width, cv.height);
+  BUILD.forEach(function (f) {
+    if (!f.r) return; var k = f.r === 'ruine' || f.r === 'schuppen' ? 0.55 : 0.8;
+    g.save(); g.shadowColor = 'rgba(255,255,255,' + k + ')'; g.shadowBlur = 11 * s; g.shadowOffsetX = far; g.translate(-far, 0);
+    g.beginPath(); f.p.forEach(function (q, n) { if (n) g.lineTo(X(q[0]), Y(q[1])); else g.moveTo(X(q[0]), Y(q[1])); }); g.closePath(); g.fillStyle = '#fff'; g.lineWidth = 5 * s; g.strokeStyle = '#fff'; g.lineJoin = 'round'; g.fill(); g.stroke(); g.restore();
+  });
+  g.globalCompositeOperation = 'lighter';
+  [[-127.6, 22.4, 10, 1.0], [-92, 25.6, 7, 0.7], [-128.3, 50.5, 6, 0.5], [17.4, -57.5, 6, 0.6], [-153, -95, 7, 0.55], [-178.1, -38.6, 9, 0.4], [-262, -112, 10, 0.6], [-226.6, -125.9, 7, 0.5],
+   [-277.5, -88.5, 13, 0.55], [-268, -53, 15, 0.6], [-34.7, 46, 22, 0.55], [-229, -10, 12, 0.5], [-155, 24.5, 5, 0.35], [-104, 26, 5, 0.35]].forEach(function (L) {
+    var gr = g.createRadialGradient(X(L[0]), Y(L[1]), 0, X(L[0]), Y(L[1]), L[2] * s); gr.addColorStop(0, 'rgba(255,255,255,' + L[3] + ')'); gr.addColorStop(0.45, 'rgba(255,255,255,' + L[3] * 0.42 + ')'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(X(L[0]), Y(L[1]), L[2] * s, 0, 7); g.fill();
+  });
+  return new THREE.CanvasTexture(cv);
+})();
+var ground = new THREE.Mesh(tgeo, new THREE.MeshBasicMaterial({ map: groundTex }));
+ground.material.onBeforeCompile = function (sh) {
+  sh.uniforms.uNight = NIGHTU; sh.uniforms.glowMap = { value: glowTex };
+  sh.fragmentShader = NGLSL + 'uniform sampler2D glowMap;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  float gl = texture2D(glowMap, vUv).r;\n  diffuseColor.rgb = mix(diffuseColor.rgb, nightGrade(diffuseColor.rgb) + mix(diffuseColor.rgb, vec3(0.7), 0.35) * vec3(1.0, 0.76, 0.48) * gl * 0.42, uNight);');
+};
+ground.position.set((X0 + X1) / 2, 0, -(Y0 + Y1) / 2); scene.add(ground);
+// Umland: Randhöhen nach außen fortgesetzt, Land in Grundfarbe, See in Blau
+var farMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide });
+farMat.onBeforeCompile = function (sh) { sh.uniforms.uNight = NIGHTU; sh.fragmentShader = NGLSL + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.rgb = mix(diffuseColor.rgb, nightGrade(diffuseColor.rgb), uNight);'); };
+(function () {
+  var R = 2600, pos = [], col = [], cb = C(PAL.base), cw = C(PAL.water);
+  function edge(x, y, ox, oy) { var h = H(x, y), w = inLake(x, y); return { x: x, y: y, ox: ox, oy: oy, h: h, c: w ? cw : cb }; }
+  var ring = [], i;
+  for (i = 0; i < NX; i++) ring.push(edge(X0 + i * ST, Y1, X0 + i * ST, Y1 + R));
+  ring.push(edge(X1, Y1, X1 + R, Y1 + R));
+  for (i = 0; i < NY; i++) ring.push(edge(X1, Y1 - i * ST, X1 + R, Y1 - i * ST));
+  ring.push(edge(X1, Y0, X1 + R, Y0 - R));
+  for (i = NX - 1; i >= 0; i--) ring.push(edge(X0 + i * ST, Y0, X0 + i * ST, Y0 - R));
+  ring.push(edge(X0, Y0, X0 - R, Y0 - R));
+  for (i = NY - 1; i >= 0; i--) ring.push(edge(X0, Y1 - i * ST, X0 - R, Y1 - i * ST));
+  ring.push(edge(X0, Y1, X0 - R, Y1 + R));
+  for (i = 0; i < ring.length; i++) {
+    var a = ring[i], b = ring[(i + 1) % ring.length];
+    [[a.x, a.h, a.y, a.c], [b.x, b.h, b.y, b.c], [b.ox, b.h, b.oy, b.c], [a.x, a.h, a.y, a.c], [b.ox, b.h, b.oy, b.c], [a.ox, a.h, a.oy, a.c]].forEach(function (v) { pos.push(v[0], v[1], -v[2]); col.push(v[3].r, v[3].g, v[3].b); });
+  }
+  var g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  scene.add(new THREE.Mesh(g, farMat));
+})();
+
+// ---------- geometry: unit icosphere (indexed) ----------
+function icosphere(detail) {
+  var t = (1 + Math.sqrt(5)) / 2, v = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]];
+  var f = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]];
+  v = v.map(function (p) { var l = Math.hypot(p[0], p[1], p[2]); return [p[0] / l, p[1] / l, p[2] / l]; });
+  for (var d = 0; d < detail; d++) {
+    var cache = {}, nf = [];
+    var mid = function (a, b) { var key = a < b ? a + '_' + b : b + '_' + a; if (cache[key] !== undefined) return cache[key]; var p = [(v[a][0] + v[b][0]) / 2, (v[a][1] + v[b][1]) / 2, (v[a][2] + v[b][2]) / 2], l = Math.hypot(p[0], p[1], p[2]); v.push([p[0] / l, p[1] / l, p[2] / l]); return (cache[key] = v.length - 1); };
+    f.forEach(function (tri) { var a = mid(tri[0], tri[1]), b = mid(tri[1], tri[2]), c = mid(tri[2], tri[0]); nf.push([tri[0], a, c], [tri[1], b, a], [tri[2], c, b], [a, b, c]); });
+    f = nf;
+  }
+  return { v: v, f: f };
+}
+var ICO = icosphere(3);
+// Laubkrone: Vereinigung mehrerer Kugeln, weich verschmolzen -> knubbelige Wolkenform
+function blobGeometry(seed, lumps, squash) {
+  var r = rng(seed), S = [{ c: [0, 0, 0], p: 0.5 }];
+  for (var i = 0; i < lumps; i++) {
+    var th = r() * Math.PI * 2, yy = r() * 1.5 - 0.55, rad = Math.sqrt(Math.max(0, 1 - Math.min(1, yy * yy))), dist = 0.36 + r() * 0.16;
+    S.push({ c: [Math.cos(th) * rad * dist, yy * dist * 0.95, Math.sin(th) * rad * dist], p: 0.25 + r() * 0.12 });
+  }
+  var n = ICO.v.length, pos = new Float32Array(n * 3), col = new Float32Array(n * 3), R = new Float32Array(n), rmin = 9, rmax = 0, K = 24;
+  for (var j = 0; j < n; j++) {
+    var d = ICO.v[j], sum = 0;
+    for (var k = 0; k < S.length; k++) { var c = S[k].c, b = d[0] * c[0] + d[1] * c[1] + d[2] * c[2], disc = b * b - (c[0] * c[0] + c[1] * c[1] + c[2] * c[2] - S[k].p * S[k].p); if (disc > 0) sum += Math.exp(K * (b + Math.sqrt(disc))); }
+    R[j] = Math.log(sum) / K; rmin = Math.min(rmin, R[j]); rmax = Math.max(rmax, R[j]);
+  }
+  var minx = 9, maxx = -9, miny = 9, maxy = -9, minz = 9, maxz = -9;
+  for (j = 0; j < n; j++) {
+    var x = ICO.v[j][0] * R[j], y = ICO.v[j][1] * R[j], z = ICO.v[j][2] * R[j], cut = -squash * rmax;
+    if (y < cut) y = cut + (y - cut) * 0.4;
+    pos[j * 3] = x; pos[j * 3 + 1] = y; pos[j * 3 + 2] = z;
+    minx = Math.min(minx, x); maxx = Math.max(maxx, x); miny = Math.min(miny, y); maxy = Math.max(maxy, y); minz = Math.min(minz, z); maxz = Math.max(maxz, z);
+  }
+  var sx = 1 / Math.max(maxx - minx, maxz - minz), sy = 1 / (maxy - miny), ox = (maxx + minx) / 2, oz = (maxz + minz) / 2;
+  for (j = 0; j < n; j++) {
+    pos[j * 3] = (pos[j * 3] - ox) * sx; pos[j * 3 + 1] = (pos[j * 3 + 1] - miny) * sy; pos[j * 3 + 2] = (pos[j * 3 + 2] - oz) * sx;
+    var crease = 0.9 + 0.1 * smooth(0, 0.5, (R[j] - rmin) / (rmax - rmin)), hgt = 0.9 + 0.13 * pos[j * 3 + 1], shv = crease * hgt;
+    col[j * 3] = col[j * 3 + 1] = col[j * 3 + 2] = shv;
+  }
+  var idx = []; ICO.f.forEach(function (t) { idx.push(t[0], t[1], t[2]); });
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+  return geo;
+}
+function lathe(profile, shade, seg, lobes, amp, seed) {
+  var n = profile.length, pos = [], col = [], idx = [], ph = (seed % 100) / 100 * 6.283, i, j;
+  for (i = 0; i <= seg; i++) {
+    var a = i / seg * Math.PI * 2;
+    for (j = 0; j < n; j++) {
+      var w = 1 + amp * Math.sin(lobes * a + ph + j * 1.7) + amp * 0.5 * Math.sin((lobes + 2) * a - ph * 2 + j), rr2 = profile[j][0] * w;
+      pos.push(Math.cos(a) * rr2, profile[j][1], Math.sin(a) * rr2);
+      var s2 = shade[j] * (0.97 + 0.03 * Math.sin(lobes * a + ph + j * 1.7)), s3 = 0.5 + 0.5 * s2; col.push(s3, s3, s3);
+    }
+  }
+  for (i = 0; i < seg; i++) for (j = 0; j < n - 1; j++) { var a0 = i * n + j, b0 = (i + 1) * n + j; idx.push(a0, a0 + 1, b0, b0, a0 + 1, b0 + 1); }
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+  var nm = geo.attributes.normal;
+  for (j = 0; j < n; j++) { var p0 = j, p1 = seg * n + j, nx = nm.getX(p0) + nm.getX(p1), ny = nm.getY(p0) + nm.getY(p1), nz = nm.getZ(p0) + nm.getZ(p1), l = Math.hypot(nx, ny, nz) || 1; nm.setXYZ(p0, nx / l, ny / l, nz / l); nm.setXYZ(p1, nx / l, ny / l, nz / l); }
+  return geo;
+}
+function tierGeometry(tiers, seed) {
+  var P = [[0, 0], [0.3, 0.004]], Sh = [0.7, 0.72];
+  for (var k = 0; k < tiers; k++) {
+    var yb = k / tiers * 0.8, rb = 0.5 * (1 - 0.6 * k / tiers), lip = 0.055 * (1 - 0.3 * k / tiers);
+    if (k > 0) { P.push([rb * 0.62, yb - 0.012]); Sh.push(0.74); }
+    P.push([rb * 0.9, yb + lip * 0.1], [rb, yb + lip * 0.55], [rb * 0.95, yb + lip]); Sh.push(0.84, 1.0, 1.02);
+    var yn = (k + 1) / tiers * 0.8, rn = 0.5 * (1 - 0.6 * (k + 1) / tiers);
+    if (k < tiers - 1) { P.push([(rb * 0.95 + rn * 0.62) / 2 + 0.01, (yb + lip + yn) / 2]); Sh.push(0.96); }
+  }
+  var last = P[P.length - 1]; P.push([last[0] * 0.55, last[1] + (1 - last[1]) * 0.5], [last[0] * 0.2, last[1] + (1 - last[1]) * 0.86], [0.012, 0.995], [0, 1]); Sh.push(1.0, 1.04, 1.06, 1.06);
+  return lathe(P, Sh, 22, 5, 0.045, seed);
+}
+function columnGeometry(seed) {
+  var P = [[0, 0], [0.26, 0.004], [0.42, 0.05], [0.5, 0.17], [0.49, 0.33], [0.43, 0.52], [0.33, 0.7], [0.2, 0.86], [0.08, 0.96], [0.012, 0.995], [0, 1]];
+  var Sh = [0.72, 0.76, 0.86, 0.93, 0.97, 1.0, 1.02, 1.04, 1.05, 1.06, 1.06];
+  return lathe(P, Sh, 20, 4, 0.05, seed);
+}
+
+// ---------- tree instances ----------
+var crownMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+crownMat.onBeforeCompile = function (sh) { sh.vertexShader = sh.vertexShader.replace('#include <lights_lambert_vertex>', '#include <lights_lambert_vertex>\n  float rimF = pow(1.0 - max(dot(normalize(transformedNormal), normalize(-mvPosition.xyz)), 0.0), 2.4);\n  vLightFront += vec3(0.13) * rimF;'); };
+var VAR = {
+  b: [blobGeometry(11, 10, 0.34), blobGeometry(23, 12, 0.3), blobGeometry(37, 9, 0.36), blobGeometry(58, 13, 0.32), blobGeometry(71, 11, 0.3), blobGeometry(96, 12, 0.33)],
+  k: [tierGeometry(3, 5), tierGeometry(4, 19), tierGeometry(3, 43)],
+  s: [columnGeometry(7), columnGeometry(31)]
+};
+// Farbkonzept: Laubbäume warm und gelbgrün, Nadelbäume kühl und blaugrün, immergrüne Eiben und Stechpalmen am dunkelsten.
+// Dazu wenige Akzente, wo die Art wirklich anders aussieht: rotlaubig, blau bereift, gelblaubig, auffällige Blüte, sommergrüne Nadelbäume.
+var ACCENT = [
+  [/^Blut|purpur/i, '#b07a90'],                                                         // Blutbuche
+  [/glauca|pungens|concolor/i, '#a3cfd6'],                                              // blau bereifte Nadelbäume: Stechfichte, Blaue Atlas-Zeder, Edel- und Kolorado-Tanne
+  [/sunburst/i, '#e3e56e'],                                                             // Gold-Gleditschie
+  [/^Ginkgo/, '#c4ea7c'],                                                               // Ginkgo: helles Lindgrün
+  [/^Magnolia/, '#f3bcd0'],                                                             // Magnolien in Blüte
+  [/^Paulownia/, '#c6b6ec'],                                                            // Blauglockenbaum
+  [/^(Prunus|Malus|Pyrus)/, '#f7e3e6'],                                                 // Kirsche, Apfel, Birne
+  [/^Aesculus x carnea/, '#f0b3b0'],                                                    // Rotblühende Rosskastanie
+  [/^(Larix|Metasequoia)/, '#b2e48c'],                                                  // Lärche und Urweltmammutbaum: sommergrün, hell und weich
+  [/^Betula/, '#c2ea8e'], [/^Tilia tomentosa/, '#b9dfb6']                               // Birke licht, Silber-Linde silbrig
+];
+var CONIFER = { Taxus: '#5fb47e', Ilex: '#6bbd72', Buxus: '#6bbd72', Pinus: '#86c9a2', Cedrus: '#86c9a2', Sequoiadendron: '#74c684', Abies: '#69c08c' };
+function tint(t) {
+  var r = rng(t.seed), base = null, i;
+  for (i = 0; i < ACCENT.length; i++) if (ACCENT[i][0].test(t.la) || ACCENT[i][0].test(t.de)) { base = ACCENT[i][1]; break; }
+  if (base) { /* Akzent */ }
+  else if (CONIFER[t.g]) base = CONIFER[t.g];
+  else if (t.f === 'k') base = '#70c98b';
+  else if (t.f === 's') base = '#7ccf98';
+  else if (t.f === 'd') base = '#6bbd72';
+  else if (t.g === 'Tilia') base = PAL.linde;
+  else if (t.g === 'Fagus') base = '#8bd070';
+  else if (t.g === 'Quercus') base = '#9dd06c';
+  else if (t.g === 'Robinia' || t.g === 'Gleditsia' || t.g === 'Fraxinus') base = '#a8e486';   // gefiedertes, lichtes Laub
+  else base = PAL.blob[Math.floor(r() * PAL.blob.length)];
+  var c = new THREE.Color(base), hsl = {}; c.getHSL(hsl);
+  c.setHSL(hsl.h + (r() - 0.5) * 0.018, clamp(hsl.s + (r() - 0.5) * 0.06, 0, 1), clamp(hsl.l + (r() - 0.5) * 0.045, 0, 1));
+  return c;
+}
+var groups = {}, pickables = [];
+TREES.forEach(function (t) {
+  var fam = (t.f === 'd') ? 'b' : t.f, v = t.seed % VAR[fam].length, key = fam + v;
+  (groups[key] = groups[key] || { geo: VAR[fam][v], list: [] }).list.push(t);
+  t.col = tint(t);
+});
+var dummy = new THREE.Object3D();
+Object.keys(groups).forEach(function (key) {
+  var gp = groups[key], mesh = new THREE.InstancedMesh(gp.geo, crownMat, gp.list.length);
+  gp.list.forEach(function (t, n) {
+    var r = rng(t.seed + 9), wob = 0.94 + r() * 0.12;
+    dummy.position.set(t.x, t.gy + t.trunk - t.ch * 0.03, -t.y);
+    dummy.rotation.set(0, r() * Math.PI * 2, 0);
+    dummy.scale.set(t.dd * wob, t.ch * 1.03, t.dd * (1.88 - wob));
+    dummy.updateMatrix(); mesh.setMatrixAt(n, dummy.matrix); mesh.setColorAt(n, t.col.clone().convertSRGBToLinear());
+    t.mesh = mesh; t.slot = n;
+  });
+  mesh.userData.list = gp.list; mesh.instanceColor.needsUpdate = true; mesh.frustumCulled = false; scene.add(mesh); pickables.push(mesh);
+});
+var trunkGeo = new THREE.CylinderGeometry(0.82, 1.12, 1, 10, 1, true); trunkGeo.translate(0, 0.5, 0);
+var trunks = new THREE.InstancedMesh(trunkGeo, new THREE.MeshLambertMaterial({ color: C(PAL.trunk) }), TREES.length);
+TREES.forEach(function (t, n) { dummy.position.set(t.x, t.gy - 0.6, -t.y); dummy.rotation.set(0, 0, 0); dummy.scale.set(t.tr, t.trunk + t.ch * 0.3 + 0.6, t.tr); dummy.updateMatrix(); trunks.setMatrixAt(n, dummy.matrix); });
+trunks.userData.list = TREES; trunks.frustumCulled = false; scene.add(trunks); pickables.push(trunks);
+
+// ---------- Standort ----------
+var me = new THREE.Group();
+var halo = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshBasicMaterial({ color: C('#1a7cf9'), transparent: true, opacity: 0.16, depthWrite: false }));
+var ringW = new THREE.Mesh(new THREE.CircleGeometry(1.75, 40), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+var dot = new THREE.Mesh(new THREE.CircleGeometry(1.25, 40), new THREE.MeshBasicMaterial({ color: C('#1a7cf9') }));
+[halo, ringW, dot].forEach(function (m, i) { m.rotation.x = -Math.PI / 2; m.position.y = 0.22 + i * 0.05; me.add(m); });
+scene.add(me);
+var UP = new THREE.Vector3(0, 1, 0), nrm = new THREE.Vector3();
+function normalAt(x, y) { var hx = (H(x + 2, y) - H(x - 2, y)) / 4, hy = (H(x, y + 2) - H(x, y - 2)) / 4; return nrm.set(-hx, 1, hy).normalize(); }
+function sit(obj, x, y, up) { obj.position.set(x, H(x, y) + (up || 0), -y); obj.quaternion.setFromUnitVectors(UP, normalAt(x, y)); }
+var ROUTE = DATA.route, ROUTE_LEN = ROUTE.reduce(function (acc, p, i) { return i ? acc + Math.hypot(p[0] - ROUTE[i - 1][0], p[1] - ROUTE[i - 1][1]) : 0; }, 0);
+function routeAt(s) { for (var i = 0; i < ROUTE.length - 1; i++) { var a = ROUTE[i], b = ROUTE[i + 1], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (s <= l) return [a[0] + (b[0] - a[0]) * s / l, a[1] + (b[1] - a[1]) * s / l]; s -= l; } return ROUTE[ROUTE.length - 1]; }
+var loc = { x: 0, y: 0, known: false };
+var selRing = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }));
+selRing.geometry.rotateX(-Math.PI / 2); selRing.visible = false; scene.add(selRing);
+
+// ---------- Kamera / Steuerung ----------
+var controls = new THREE.OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.09; controls.screenSpacePanning = false;
+controls.minDistance = 26; controls.maxDistance = 760; controls.minPolarAngle = 0.02; controls.maxPolarAngle = 1.24; controls.zoomSpeed = 0.9; controls.rotateSpeed = 0.5;
+controls.mouseButtons = { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+controls.touches = { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE };
+var TILT3D = 0.98, tiltGoal = null, targetGoal = null, azGoal = null, is3D = true;
+function view(tx, ty, dist, az, tilt) { controls.target.set(tx, H(tx, ty), -ty); var s = new THREE.Spherical(dist, tilt, az); camera.position.setFromSpherical(s).add(controls.target); }
+function resize() {
+  var w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w < h ? 42 : 32; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+if (canvas.clientWidth < canvas.clientHeight) view(-50, 8, 470, 0.42, TILT3D); else view(-78, 8, 430, 0.36, 0.98);
+
+// ---------- Beschriftungen ----------
+var LABELS = [
+  { t: 'Villa Lindenhof', x: -34.7, y: 58, up: 17, c: 'poi', far: 9999 }, { t: 'Bodensee', x: -30, y: -112, up: 0, c: 'water', far: 9999 },
+  { t: 'Schweizerhaus', x: 90, y: 37, up: 18, c: 'poi', far: 9999 }, { t: 'Lindenallee', x: -58, y: -52, up: 1, c: 'area', far: 9999 },
+  { t: 'Buchenwäldle', x: -236, y: 72, up: 2, c: 'area', far: 9999 }, { t: 'Gärtnerhaus', x: -178, y: 109, up: 13, c: 'poi', far: 700 },
+  { t: 'Ruine Degelstein', x: -229, y: -12, up: 7, c: 'poi', far: 620 }, { t: 'Seeschlössle', x: 89, y: -6.5, up: 17, c: 'poi', far: 620 },
+  { t: 'Lindenhofbad', x: -270, y: -35, up: 10, c: 'poi', far: 9999 }, { t: 'Mole', x: -246, y: -119, up: 7, c: 'poi', far: 520 }, { t: 'Badefloß', x: -329, y: -189, up: 3, c: '', far: 420 }, { t: 'Brücke', x: -178.1, y: -38.6, up: 13, c: '', far: 300 }, { t: 'Nutz- und Blumengarten', x: -140, y: 33, up: 1, c: 'area', far: 520 },
+  { t: 'Friedenssäule', x: 17.4, y: -59.5, up: 7.5, c: 'poi', far: 420 }, { t: 'Gruft auf dem Horn', x: -153, y: -95, up: 4, c: 'poi', far: 420 },
+  { t: 'Dienstbotenhaus', x: -37.5, y: 88, up: 9, c: '', far: 300 }, { t: 'Weiher', x: -141, y: -70, up: 0.5, c: 'water', far: 360 }, { t: 'Lindenhofweg', x: -95, y: 108, up: 0.5, c: 'road', far: 520 }
+];
+LABELS.forEach(function (l) { var e = document.createElement('div'); e.className = 'maplabel ' + l.c; e.textContent = l.t; $('labels').appendChild(e); l.el = e; l.w = e.offsetWidth + 10; l.h = e.offsetHeight + 6; l.p = W(l.x, l.y, l.up); });
+var v3 = new THREE.Vector3();
+function project(p) { v3.copy(p).project(camera); return v3.z < 1 && Math.abs(v3.x) < 1.1 && Math.abs(v3.y) < 1.1 ? [(v3.x * 0.5 + 0.5) * canvas.clientWidth, (-v3.y * 0.5 + 0.5) * canvas.clientHeight] : null; }
+function layoutLabels(dist) {
+  var kept = [];
+  LABELS.forEach(function (l) {
+    var s = dist < l.far ? project(l.p) : null, ok = !!s;
+    if (ok) { var r = [s[0] - l.w / 2, s[1] - l.h / 2, s[0] + l.w / 2, s[1] + l.h / 2]; for (var i = 0; i < kept.length; i++) { var k = kept[i]; if (r[0] < k[2] && r[2] > k[0] && r[1] < k[3] && r[3] > k[1]) { ok = false; break; } } if (ok) { kept.push(r); l.el.style.transform = 'translate(' + (s[0] - l.w / 2 + 5).toFixed(1) + 'px,' + (s[1] - l.h / 2 + 3).toFixed(1) + 'px)'; } }
+    l.el.style.visibility = ok ? 'visible' : 'hidden';
+  });
+}
+
+// ---------- Tag und Nacht ----------
+var night = false, DAYBG = C(PAL.base), WARM = C('#ffd98c');
+var NBG = (function () { var d = C(PAL.base), g = smooth(0.3, 0.6, Math.min(d.r, d.g, d.b)); return new THREE.Color(d.r * (0.062 + (0.052 - 0.062) * g), d.g * (0.165 + (0.076 - 0.165) * g), d.b * (0.40 + (0.168 - 0.40) * g)); })();   // = nightGrade(Grundfarbe)
+// Nachthimmel: Verlauf vom Dunst am Horizont ins tiefe Blau, dazu wenige, schwache Sterne
+var sky = (function () {
+  var R = 3400, geo = new THREE.SphereGeometry(R, 24, 14), p = geo.attributes.position, col = new Float32Array(p.count * 3), zen = C('#1f3277'), HOR = NBG;
+  for (var i = 0; i < p.count; i++) { var t = Math.pow(clamp(p.getY(i) / R, 0, 1), 0.55); col[i * 3] = HOR.r + (zen.r - HOR.r) * t; col[i * 3 + 1] = HOR.g + (zen.g - HOR.g) * t; col[i * 3 + 2] = HOR.b + (zen.b - HOR.b) * t; }
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  var grp = new THREE.Group(), dome = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })); dome.renderOrder = -2; grp.add(dome);
+  var r = rng(2024), n = 520, sp = new Float32Array(n * 3), sc = new Float32Array(n * 3);
+  for (i = 0; i < n; i++) { var y = 0.07 + r() * 0.93, a = r() * Math.PI * 2, q = Math.sqrt(1 - y * y), br = 0.16 + Math.pow(r(), 3.2) * 0.62; sp[i * 3] = Math.cos(a) * q * R * 0.97; sp[i * 3 + 1] = y * R * 0.97; sp[i * 3 + 2] = Math.sin(a) * q * R * 0.97; sc[i * 3] = br * 0.92; sc[i * 3 + 1] = br * 0.96; sc[i * 3 + 2] = br; }
+  var sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(sp, 3)); sg.setAttribute('color', new THREE.BufferAttribute(sc, 3));
+  var stars = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.7, sizeAttenuation: false, vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, fog: false, depthWrite: false })); stars.renderOrder = -1; grp.add(stars);
+  grp.visible = false; scene.add(grp); return grp;
+})();
+function setNight(on) {
+  night = on; $('app').classList.toggle('night', on); 
+  NIGHTU.value = on ? 1 : 0; sky.visible = on;
+  var bg = on ? NBG : DAYBG; scene.background = bg.clone(); scene.fog.color.copy(bg);
+  hemi.color.copy(on ? C('#86b6ee') : new THREE.Color(1, 1, 1)); hemi.groundColor.copy(on ? C('#1d2a58') : C('#e6f2d6')); hemi.intensity = on ? 0.5 : 0.9;
+  sun.color.copy(on ? C('#b4c8ff') : C('#fff7ea')); sun.intensity = on ? 0.1 : 0.3;
+  glassMat.emissive.copy(on ? WARM : new THREE.Color(0, 0, 0)); glassMat.emissiveIntensity = on ? 1.0 : 0; glassMat.color.copy(on ? C('#6f6a5a') : C('#b7c9d2'));
+  Object.keys(lmCache).forEach(function (k) {                                   // Bauteile ohne eigenes Netz (Ruine, Friedenssäule): gleichmäßig warm angestrahlt
+    var m = lmCache[k]; if (k.charAt(0) === 'v') return;
+    m.emissive.copy(on ? m.color.clone().multiply(C('#ffdfae')) : new THREE.Color(0, 0, 0)); m.emissiveIntensity = on ? 0.42 : 0;
+  });
+}
+
+
+// ---------- Schleife ----------
+var sph = new THREE.Spherical(), off = new THREE.Vector3(), clock = new THREE.Clock(), reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function frame() {
+  if (paused) { running = false; return; }
+  var dt = Math.min(clock.getDelta(), 0.05), time = clock.elapsedTime;
+  waterTick(time, dt);
+  if (targetGoal) { off.copy(targetGoal).sub(controls.target); if (off.length() < 0.05) targetGoal = null; else { off.multiplyScalar(reduce ? 1 : Math.min(1, dt * 5)); controls.target.add(off); camera.position.add(off); } }
+  if (tiltGoal !== null || azGoal !== null) {
+    off.copy(camera.position).sub(controls.target); sph.setFromVector3(off); var k = reduce ? 1 : Math.min(1, dt * 6);
+    if (tiltGoal !== null) { var dphi = tiltGoal - sph.phi; if (Math.abs(dphi) < 0.004) tiltGoal = null; else sph.phi += dphi * k; }
+    if (azGoal !== null) { var dth = Math.atan2(Math.sin(azGoal - sph.theta), Math.cos(azGoal - sph.theta)); if (Math.abs(dth) < 0.004) azGoal = null; else sph.theta += dth * k; }
+    off.setFromSpherical(sph); camera.position.copy(controls.target).add(off);
+  }
+  controls.target.x = clamp(controls.target.x, -325, 118); controls.target.z = clamp(controls.target.z, -128, 196);
+  var gyT = H(controls.target.x, -controls.target.z), dy = gyT - controls.target.y; controls.target.y += dy; camera.position.y += dy;
+  controls.update();
+  var floor = H(camera.position.x, -camera.position.z) + 4; if (camera.position.y < floor) camera.position.y = floor;
+  var pulse = reduce ? 0 : (time * 0.55) % 1; halo.scale.setScalar(6 + pulse * 5); halo.material.opacity = 0.2 * (1 - pulse) + 0.05;
+  var dist = camera.position.distanceTo(controls.target), ks = clamp(dist / 150, 0.55, 2.6); ringW.scale.setScalar(ks); dot.scale.setScalar(ks);
+  renderer.render(scene, camera);
+  layoutLabels(dist); layoutPlaces(); layoutStars(); stepFx(dt, time);
+  if (selected) { v3.set(selected.x, selected.gy + selected.top + 1.2, -selected.y); var s = project(v3); pin.style.visibility = s ? 'visible' : 'hidden'; if (s) pin.style.transform = 'translate(' + s[0].toFixed(1) + 'px,' + s[1].toFixed(1) + 'px)'; }
+  off.copy(camera.position).sub(controls.target); reportHeading(Math.atan2(off.x, off.z) * 180 / Math.PI);
+  requestAnimationFrame(frame);
+}
+// ================= Lebendiges Wasser und Boote =================
+// Eine durchsichtige Schicht knapp über dem See zeichnet nur helle Linien: treibende Glanzlichter, sanfte Dünung und Wellenbänder, die aufs Ufer zulaufen.
+// Grundlage ist eine 1-m-Karte: Abstand zum Ufer, offener See oder Kleingewässer (Weiher, Graben um die Ruine, Bach), Wasser ja/nein.
+var MOAT = [[-228, 4.5], [-230, 1], [-234.5, -2.5], [-239.5, -6.5], [-243, -12], [-243.5, -19], [-241.5, -25], [-236, -28.5], [-226, -29.5], [-217, -27.5], [-211.5, -24.5], [-213.5, -20]];
+var BROOK = [[-190.5, -33.5], [-186, -36], [-182.3, -40], [-178.8, -44.8], [-175.2, -50], [-172.5, -54.5], [-166.5, -58.5], [-161.5, -60.5]];
+var waterU = null, boats = [], ship = null;
+(function () {
+  var w = Math.round(SPANX) + 1, h = Math.round(SPANY) + 1, D = new Float32Array(w * h), T = new Uint8Array(w * h), i, j, o, BIG = 1e4;
+  function nearLine(x, y, L, r) { for (var k = 0; k < L.length - 1; k++) { var a = L[k], b = L[k + 1], dx = b[0] - a[0], dy = b[1] - a[1], t = clamp(((x - a[0]) * dx + (y - a[1]) * dy) / (dx * dx + dy * dy), 0, 1); if (Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy) < r) return true; } return false; }
+  for (j = 0; j < h; j++) for (i = 0; i < w; i++) {
+    var x = X0 + i, y = Y0 + j, t = 0;
+    if (inLake(x, y)) t = 2; else if (x > -250 && x < -120 && y > -75 && y < 10 && ((POND.length && inPoly(x, y, POND)) || nearLine(x, y, MOAT, 3.2) || nearLine(x, y, BROOK, 1.8))) t = 1;
+    T[j * w + i] = t; D[j * w + i] = t ? BIG : 0;
+  }
+  function relax(i, j, di, dj, c) { var a = i + di, b = j + dj; if (a < 0 || b < 0 || a >= w || b >= h) return; var v = D[b * w + a] + c; if (v < D[j * w + i]) D[j * w + i] = v; }
+  for (j = 0; j < h; j++) for (i = 0; i < w; i++) { relax(i, j, -1, 0, 1); relax(i, j, 0, -1, 1); relax(i, j, -1, -1, 1.414); relax(i, j, 1, -1, 1.414); }
+  for (j = h - 1; j >= 0; j--) for (i = w - 1; i >= 0; i--) { relax(i, j, 1, 0, 1); relax(i, j, 0, 1, 1); relax(i, j, 1, 1, 1.414); relax(i, j, -1, 1, 1.414); }
+  var px = new Uint8Array(w * h * 4);
+  for (o = 0; o < w * h; o++) { px[o * 4] = Math.round(clamp(D[o] / 24, 0, 1) * 255); px[o * 4 + 1] = T[o] === 2 ? 255 : 0; px[o * 4 + 2] = T[o] ? 255 : 0; px[o * 4 + 3] = 255; }
+  var tex = new THREE.DataTexture(px, w, h, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping; tex.needsUpdate = true;
+  waterU = { uTime: { value: 0 }, uNight: NIGHTU, uMap: { value: tex }, uRect: { value: new THREE.Vector4(X0, Y0, SPANX, SPANY) } };
+  var mat = new THREE.ShaderMaterial({
+    uniforms: waterU, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    vertexShader: 'varying vec2 vW; varying float vD;\nvoid main() { vec4 wp = modelMatrix * vec4(position, 1.0); vW = vec2(wp.x, -wp.z); vec4 mv = viewMatrix * wp; vD = -mv.z; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: [
+      'uniform float uTime; uniform float uNight; uniform sampler2D uMap; uniform vec4 uRect; varying vec2 vW; varying float vD;',
+      'void main() {',
+      '  vec4 m = texture2D(uMap, clamp((vW - uRect.xy) / uRect.zw, 0.0, 1.0));',
+      '  float water = smoothstep(0.4, 0.75, m.b); if (water < 0.01) discard;',
+      '  float d = m.r * 24.0, lake = smoothstep(0.3, 0.7, m.g), t = uTime; vec2 p = vW;',
+      '  float near = 1.0 - smoothstep(260.0, 800.0, vD);',
+      // treibende, unterbrochene Glanzlinien
+      '  float l1 = sin(p.y * 0.40 + sin(p.x * 0.055 + t * 0.22) * 2.4 + t * 0.50);',
+      '  float l2 = sin(p.y * 0.26 - p.x * 0.05 + sin(p.x * 0.043 - t * 0.17) * 2.0 - t * 0.36 + 1.7);',
+      '  float brk = smoothstep(0.2, 0.8, sin(p.x * 0.085 + t * 0.10 + sin(p.y * 0.05) * 2.0) * sin(p.x * 0.031 - p.y * 0.043 - t * 0.06) * 0.5 + 0.5);',
+      '  float lines = (smoothstep(0.974, 1.0, l1) + smoothstep(0.98, 1.0, l2) * 0.7) * brk * (0.45 + 0.55 * smoothstep(15.0, 90.0, vD));',
+      '  float swell = max(0.0, sin(p.x * 0.021 + p.y * 0.034 + t * 0.26) * sin(p.x * 0.013 - p.y * 0.027 - t * 0.19));',
+      // Wellenbänder laufen aufs Ufer zu, werden heller und brechen an der Kante
+      '  float wob = sin(p.x * 0.23 + t * 0.26) * 0.9 + sin(p.y * 0.19 - t * 0.18) * 0.9;',
+      '  float band = smoothstep(0.6, 1.0, sin(d * 0.72 + t * 1.05 + wob));',
+      '  float reach = smoothstep(13.0, 1.5, d) * smoothstep(0.1, 1.0, d);',
+      '  float foam = band * reach * (0.3 + 0.7 * (1.0 - clamp(d / 13.0, 0.0, 1.0)));',
+      '  float edge = smoothstep(1.7, 0.25, d) * (0.45 + 0.55 * sin(t * 1.05 + wob + 0.8));',
+      '  float aLake = lines * 0.27 * near + swell * 0.04 + foam * 0.42 + edge * 0.4;',
+      // Nahbereich (Schwimmer, Ufer): kleine, schnell wandernde Kräusel, damit die Fläche auch aus Augenhöhe lebt
+      '  float nr = 1.0 - smoothstep(3.0, 34.0, vD);',
+      '  float k1 = sin(p.x * 3.9 + sin(p.y * 2.7 + t * 1.2) * 1.7 + t * 1.6), k2 = sin(p.y * 4.6 - p.x * 1.5 + sin(p.x * 2.1 - t * 1.0) * 1.5 - t * 1.3), k3 = sin((p.x + p.y) * 1.3 + sin(p.x * 0.9 - t * 0.6) * 2.0 + t * 0.8);',
+      '  aLake += (smoothstep(0.82, 1.0, k1) * 0.16 + smoothstep(0.85, 1.0, k2) * 0.13 + smoothstep(0.9, 1.0, k3) * 0.1) * nr;',
+      // Kleingewässer: nur feine Kringel, damit man die Oberfläche wahrnimmt
+      '  float s1 = sin(p.x * 1.05 + sin(p.y * 0.85 + t * 0.5) * 1.4 + t * 0.7), s2 = sin(p.y * 1.3 - p.x * 0.4 + sin(p.x * 0.6 - t * 0.4) * 1.2 - t * 0.55);',
+      '  float aPond = (smoothstep(0.9, 1.0, s1) + smoothstep(0.93, 1.0, s2) * 0.7) * 0.22 * (1.0 - smoothstep(90.0, 320.0, vD)) * smoothstep(0.3, 1.2, d) + smoothstep(1.2, 0.3, d) * smoothstep(0.0, 0.3, d) * 0.14 * (0.6 + 0.4 * sin(t * 0.9 + wob));',
+      '  float a = mix(aPond, aLake, lake) * water * mix(1.0, 0.5, uNight);',
+      '  gl_FragColor = vec4(mix(vec3(1.0), vec3(0.62, 0.78, 1.0), uNight), clamp(a, 0.0, 0.8));',
+      '}'].join('\n')
+  });
+  var pg = new THREE.PlaneGeometry(1, 1); pg.rotateX(-Math.PI / 2);
+  var plane = new THREE.Mesh(pg, mat), R = 2600; plane.scale.set(SPANX + 2 * R, 1, SPANY + 2 * R); plane.position.set((X0 + X1) / 2, 0.06, -(Y0 + Y1) / 2); plane.frustumCulled = false; plane.renderOrder = 1; scene.add(plane);
+  // Weiher, Graben und Bach liegen auf dem Gelände: eigene, aufs Gelände gelegte Schicht mit demselben Material
+  var pos = [], gi, gj;
+  for (gj = 0; gj < NY - 1; gj++) for (gi = 0; gi < NX - 1; gi++) {
+    var gx = X0 + gi * ST, gy = Y1 - gj * ST; if (gx < -252 || gx > -118 || gy > 12 || gy < -77) continue;
+    var any = false; for (var a = -1; a <= ST + 1 && !any; a++) for (var b = -1; b <= ST + 1; b++) { var ci = Math.round(gx - X0) + a, cj = Math.round(gy - ST - Y0) + b; if (ci >= 0 && cj >= 0 && ci < w && cj < h && T[cj * w + ci] === 1) { any = true; break; } }
+    if (!any) continue;
+    var q = [[gx, gy], [gx + ST, gy], [gx + ST, gy - ST], [gx, gy - ST]].map(function (c) { return [c[0], H(c[0], c[1]) + 0.09, -c[1]]; });
+    [0, 3, 1, 1, 3, 2].forEach(function (k) { pos.push(q[k][0], q[k][1], q[k][2]); });
+  }
+  var sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  var small = new THREE.Mesh(sg, mat); small.frustumCulled = false; small.renderOrder = 1; scene.add(small);
+})();
+
+// ---------- Boote ----------
+function outline(R, tip) { return R.map(function (p) { return [p[0], -p[1]]; }).concat([[tip, 0]]).concat(R.slice().reverse()); }       // Rumpfumriss: Bug bei +u
+function scaleO(P, su, sv, du) { return P.map(function (p) { return [p[0] * su + (du || 0), p[1] * sv]; }); }
+function loft(K, A, ya, B, yb, col, inward, keep) {                                  // Mantelfläche zwischen zwei Umrissen
+  var n = A.length, s = inward ? -1 : 1;
+  for (var i = 0; i < n; i++) { var j = (i + 1) % n; if (keep && !(keep(B[i]) && keep(B[j]))) continue; var du = B[j][0] - B[i][0], dv = B[j][1] - B[i][1], l = Math.hypot(du, dv) || 1;
+    K.face([[A[i][0], ya, A[i][1]], [A[j][0], ya, A[j][1]], [B[j][0], yb, B[j][1]], [B[i][0], yb, B[i][1]]], col, [s * dv / l, inward ? 0 : -0.2, -s * du / l]); }
+}
+function ring(K, O, I, y, col, keep) { for (var i = 0; i < O.length; i++) { var j = (i + 1) % O.length; if (keep && !(keep(O[i]) && keep(O[j]))) continue; K.face([[O[i][0], y, O[i][1]], [O[j][0], y, O[j][1]], [I[j][0], y, I[j][1]], [I[i][0], y, I[i][1]]], col, [0, 1, 0]); } }
+function lifering(K, u, y, v, R, axis) { for (var k = 0; k < 8; k++) K.add(new THREE.TorusGeometry(R, R * 0.32, 7, 5, Math.PI / 4 + 0.02), k % 2 ? '#ffffff' : '#f0703c', u, y, -v, axis === 'u' ? Math.PI / 2 : 0, axis === 'y' ? Math.PI / 2 : 0, k * Math.PI / 4); }
+var BWH = '#ffffff', BBL = '#6aa0d8', BLB = '#bfe3f5', BCY = '#aeeaf2', BLAV = '#bdbbe0', BTAN = '#e8b58c';
+
+// kleines offenes Motorboot: blaue Bordkante, weißes Vordeck, hellblaue Scheibe, orange Sitze, Rettungsring, Außenborder
+function motorboat() {
+  var K = Kit(); K.glow = 0.45; var OR = '#f4a77c';
+  var T = outline([[-2.6, 0.92], [-1.0, 1.02], [0.5, 1.0], [1.5, 0.82], [2.15, 0.5], [2.5, 0.16]], 2.62), M = scaleO(T, 0.985, 0.94), B = scaleO(T, 0.93, 0.7, -0.05), I = K.offset(T, -0.17);
+  loft(K, B, -0.3, M, 0.4, BWH); loft(K, M, 0.4, T, 0.64, BBL); ring(K, T, I, 0.64, BBL); loft(K, I, 0.22, I, 0.64, BWH, true); K.prism(I, 0.16, 0.22, '#eef1f6');
+  K.prism(I.filter(function (p) { return p[0] > 0.78; }), 0.22, 0.62, BWH);                                  // Vordeck
+  K.box(0.42, 0.8, -0.82, 0.82, 0.22, 0.6, BWH);
+  K.add(new THREE.BoxGeometry(0.06, 0.5, 1.02), BLB, 0.72, 0.86, 0, 0, 0, 0.36); [-1, 1].forEach(function (s) { K.add(new THREE.BoxGeometry(0.06, 0.46, 0.6), BLB, 0.5, 0.84, s * 0.7, s * 0.95, 0, 0.3); });
+  K.add(new THREE.TorusGeometry(0.15, 0.032, 6, 14), '#4a5158', 0.38, 0.66, -0.4, Math.PI / 2, 0.5);
+  [-0.44, 0.44].forEach(function (v) { K.box(-0.4, 0.16, v - 0.36, v + 0.36, 0.22, 0.5, OR); K.add(new THREE.BoxGeometry(0.13, 0.62, 0.72), OR, -0.42, 0.74, -v, 0, 0, 0.16); });
+  K.box(-1.95, -1.42, -0.8, 0.8, 0.22, 0.5, OR); K.add(new THREE.BoxGeometry(0.13, 0.56, 1.6), OR, -1.98, 0.72, 0, 0, 0, 0.13);
+  lifering(K, -2.22, 0.82, -0.5, 0.3, 'u');
+  K.box(-3.0, -2.6, -0.24, 0.24, 0.34, 0.98, BLAV); K.box(-2.92, -2.68, -0.1, 0.1, -0.35, 0.34, BLAV);
+  return K;
+}
+// Kajütboot: blauer Unterwasserrumpf, weißer Aufbau mit blauem Dach, Mast mit Stagen, Bugreling, je zwei Rettungsringe, Tonne im Heck
+function cruiser() {
+  var K = Kit(); K.glow = 0.45;
+  var T = outline([[-3.7, 1.32], [-1.2, 1.46], [1.2, 1.42], [2.5, 1.1], [3.3, 0.62]], 3.75), W = scaleO(T, 0.975, 0.92), B = scaleO(T, 0.9, 0.7, -0.1), I = K.offset(T, -0.15);
+  loft(K, B, -0.35, W, 0.42, BBL); loft(K, W, 0.42, T, 1.05, BWH); loft(K, T, 1.05, T, 1.3, BWH); ring(K, T, I, 1.3, BWH); loft(K, I, 1.0, I, 1.3, BWH, true); K.prism(I, 0.94, 1.0, '#f1f3f8');
+  K.box(-1.5, 1.4, -1.02, 1.02, 1.0, 2.2, BWH);
+  K.face([[1.4, 2.2, -1.02], [1.4, 2.2, 1.02], [2.1, 1.0, 0.86], [2.1, 1.0, -0.86]], BWH, [0.86, 0.5, 0]);
+  [-1, 1].forEach(function (s) { K.face([[1.4, 1.0, s * 1.02], [2.1, 1.0, s * 0.86], [1.4, 2.2, s * 1.02], [1.4, 2.2, s * 1.02]], BWH, [0.2, 0, s]); K.box(-1.0, 0.9, s * 1.02 - 0.02, s * 1.02 + 0.02, 1.45, 1.95, BCY); });
+  K.face([[1.5, 2.07, -0.8], [1.5, 2.07, 0.8], [1.96, 1.29, 0.68], [1.96, 1.29, -0.68]], BCY, [0.86, 0.5, 0]);
+  K.prism([[-1.75, -1.15], [1.0, -1.15], [1.6, -0.72], [1.6, 0.72], [1.0, 1.15], [-1.75, 1.15]], 2.2, 2.37, BBL);
+  K.rod([0.5, 2.37, 0], [0.12, 5.7, 0], 0.075, BLAV, 8); K.rod([0.13, 5.6, 0], [3.45, 1.38, 0], 0.02, BLAV, 4);
+  [-1, 1].forEach(function (s) { K.rod([0.13, 5.6, 0], [-3.5, 1.32, s * 1.2], 0.02, BLAV, 4); K.rod([0.2, 4.9, 0], [-0.1, 2.37, s * 1.1], 0.02, BLAV, 4); });
+  var rail = I.filter(function (p) { return p[0] > 0.9; }); rail.forEach(function (p, n) { K.rod([p[0], 1.3, p[1]], [p[0], 1.8, p[1]], 0.035, BLAV, 5); if (n) K.rod([rail[n - 1][0], 1.8, rail[n - 1][1]], [p[0], 1.8, p[1]], 0.03, BLAV, 5); });
+  [-1, 1].forEach(function (s) { lifering(K, -0.75, 0.74, s * 1.52, 0.42); lifering(K, 1.05, 0.74, s * 1.5, 0.42); });
+  K.cyl(-2.7, -0.45, 0.42, 0.37, 1.0, 1.7, BLAV, 12); K.cyl(-2.7, -0.45, 0.3, 0.3, 1.7, 1.715, '#cfe3f6', 12); K.box(2.25, 2.65, 0.3, 0.7, 1.0, 1.12, '#f0703c');
+  return K;
+}
+// Ausflugsschiff: weißer Rumpf mit blauen Bändern, Holzdeck am Bug, zwei Decks mit türkisen Fenstern, gelbe Stützen, graues Dach mit zwei Schornsteinen
+function excursion() {
+  var K = Kit(); K.glow = 0.45; var YE = '#f0c85a', LAV2 = '#a9a7cc', u, v;
+  var T = outline([[-7, 2.0], [-6.5, 2.3], [2.6, 2.3], [4.6, 2.05], [6.0, 1.45], [6.75, 0.7]], 7.0), W = scaleO(T, 0.985, 0.95), B = scaleO(T, 0.92, 0.78, -0.1), O = K.offset(T, 0.1), I = K.offset(T, -0.16), bow = function (p) { return p[0] > 2.4; };
+  loft(K, B, -0.4, W, 0.5, BWH); loft(K, W, 0.5, T, 0.95, BWH); K.prism(O, 0.95, 1.2, BBL); K.prism(I, 1.2, 1.25, BTAN);
+  loft(K, O, 1.2, O, 1.62, BBL, false, bow); ring(K, O, I, 1.62, BBL, bow); loft(K, I, 1.25, I, 1.62, BWH, true, bow);
+  K.box(-6.3, 2.5, -1.95, 1.95, 1.2, 3.3, BWH); K.box(-6.32, 2.52, -1.97, 1.97, 1.5, 1.66, BBL);
+  for (u = -5.5; u <= 1.9; u += 1.55) [-1, 1].forEach(function (s) { K.box(u - 0.55, u + 0.55, s * 1.95 - 0.02, s * 1.95 + 0.02, 2.0, 2.8, BCY); K.cyl(u + 0.78, s * 2.2, 0.05, 0.05, 1.2, 3.3, YE, 6); });
+  [-0.85, 0.85].forEach(function (c) { K.box(2.48, 2.52, c - 0.55, c + 0.55, 2.0, 2.8, BCY); });
+  var U = outline([[-6.7, 2.3], [3.2, 2.3], [4.2, 1.8], [4.7, 0.9]], 4.85), UI = K.offset(U, -0.12);
+  K.prism(U, 3.3, 3.5, BBL); K.prism(UI, 3.5, 3.54, BTAN);
+  K.box(-6.1, 1.3, -1.8, 1.8, 3.5, 5.5, BWH); K.box(-6.12, 1.32, -1.82, 1.82, 3.78, 3.9, BBL);
+  for (u = -5.3; u <= 0.8; u += 1.5) [-1, 1].forEach(function (s) { K.box(u - 0.5, u + 0.5, s * 1.8 - 0.02, s * 1.8 + 0.02, 4.2, 5.0, BCY); });
+  [-0.8, 0.8].forEach(function (c) { K.box(1.28, 1.32, c - 0.5, c + 0.5, 4.2, 5.0, BCY); });
+  for (u = -6.4; u <= 1.2; u += 1.52) [-1, 1].forEach(function (s) { K.cyl(u, s * 2.14, 0.05, 0.05, 3.5, 5.5, YE, 6); });
+  var fr = UI.filter(function (p) { return p[0] > 1.6; }); fr.forEach(function (p, n) { K.rod([p[0], 3.5, p[1]], [p[0], 4.45, p[1]], 0.045, YE, 5); if (n) { K.rod([fr[n - 1][0], 4.45, fr[n - 1][1]], [p[0], 4.45, p[1]], 0.04, YE, 5); K.rod([fr[n - 1][0], 4.0, fr[n - 1][1]], [p[0], 4.0, p[1]], 0.025, YE, 4); } });
+  K.prism(outline([[-6.8, 2.35], [1.6, 2.35], [2.3, 1.9], [2.55, 1.0]], 2.6), 5.5, 5.76, BLAV);
+  K.cyl(-0.9, 0.35, 0.3, 0.3, 5.76, 6.7, LAV2, 12); K.cyl(-0.9, 0.35, 0.35, 0.35, 6.7, 6.8, BLAV, 12); K.cyl(0.05, -0.3, 0.3, 0.3, 5.76, 6.95, LAV2, 12); K.cyl(0.05, -0.3, 0.35, 0.35, 6.95, 7.05, BLAV, 12);
+  return K;
+}
+// Liegeplätze rund ums Bad; das Ausflugsschiff dreht langsam seine Runde vor dem Ufer
+[[cruiser, -206, -110, 0.5, 1.25], [motorboat, -248, -138, -0.45, 1.35], [motorboat, -316, -112, 1.9, 1.35]].forEach(function (b, n) {
+  if (!inLake(b[1], b[2])) return; var g = b[0]().place(b[1], b[2], 0, b[3]); g.scale.setScalar(b[4]); boats.push({ g: g, ang: b[3], ph: n * 2.1, amp: b[0] === motorboat ? 1.4 : 1 });
+});
+ship = { g: excursion().place(-200, -160, 0, 0), s: 230 }; ship.g.scale.setScalar(1.25);
+function shipAt(s) {                         // Rundkurs: nach Osten dicht vor dem Horn, in weitem Bogen zurück
+  var L = 560, R = 27, xa = -430, xb = 130, yn = -160, yc = -187, tot = 2 * L + 2 * Math.PI * R, a; s = ((s % tot) + tot) % tot;
+  if (s < L) return [xa + s, yn, 0]; s -= L;
+  if (s < Math.PI * R) { a = s / R; return [xb + R * Math.sin(a), yc + R * Math.cos(a), -a]; } s -= Math.PI * R;
+  if (s < L) return [xb - s, yc - R, Math.PI]; s -= L; a = s / R; return [xa - R * Math.sin(a), yc - R * Math.cos(a), Math.PI - a];
+}
+function waterTick(time, dt) {
+  if (!waterU) return; var t = reduce ? 0 : time; waterU.uTime.value = t;
+  boats.forEach(function (b) { b.g.position.y = Math.sin(t * 0.9 + b.ph) * 0.05 * b.amp; b.g.rotation.x = Math.sin(t * 0.7 + b.ph * 1.3) * 0.022 * b.amp; b.g.rotation.z = Math.sin(t * 0.55 + b.ph) * 0.014 * b.amp; b.g.rotation.y = b.ang + Math.sin(t * 0.11 + b.ph) * 0.05; });
+  if (ship) { if (!reduce) ship.s += dt * 2.2; var p = shipAt(ship.s); ship.g.position.set(p[0], Math.sin(t * 0.6) * 0.04, -p[1]); ship.g.rotation.set(Math.sin(t * 0.5) * 0.008, p[2], 0); }
+}
+waterTick(0, 0);
+
+// ================= Alpenpanorama jenseits des Sees =================
+// Kämme und Gipfel mit echter Lage (Breite, Länge) und Höhe; dazwischen wird das Relief erzeugt. Von Lindau aus gesehen, von Ost nach West:
+// Pfänder – Bregenzerwald (Staufen, Hohe Kugel, Hoher Freschen) – Rätikon (Drei Schwestern, Schesaplana, Zimba) – Rheintal mit Falknis und Pizol im Hintergrund –
+// Alvier – Alpstein (Hoher Kasten, Altmann, Säntis) – Appenzeller Vorderland. Richtungen stimmen; Entfernungen sind gestaucht, Höhenwinkel 2,6-fach überhöht.
+(function () {
+  var LAT = 47.55735, LON = 9.6614, KXM = 75.13, KYM = 111.32, FL = 420;
+  function EXF(D) { return 2.4 + 1.9 * smooth(8, 40, D); }          // Überhöhung: nahe Berge 2,4-fach, ferne bis 4,3-fach (Tele-Effekt), sonst verschwinden die Alpen hinter dem Pfänder
+  function km(lat, lon) { return [(lon - LON) * KXM, (lat - LAT) * KYM]; }
+  var RIDGES = [
+    [1.5, [[47.488, 9.748, 600], [47.5075, 9.7797, 1064], [47.535, 9.83, 1095], [47.56, 9.8, 1069], [47.6, 9.83, 950]]],                                          // Pfänderrücken
+    [2.0, [[47.44, 9.87, 1100], [47.405, 9.83, 1464], [47.39, 9.76, 1465], [47.355, 9.75, 1300], [47.326, 9.735, 1645], [47.306, 9.789, 2004], [47.29, 9.83, 1997]]],   // Hochälpele, Staufen, Hohe Kugel, Hoher Freschen
+    [2.0, [[47.306, 9.789, 2004], [47.363, 9.83, 1830], [47.38, 9.86, 1600]]],
+    [2.2, [[47.43, 9.9, 1711], [47.417, 9.934, 1877], [47.39, 9.99, 1700]]],                                                                                       // Winterstaude
+    [2.2, [[47.33, 9.925, 2044], [47.31, 9.91, 2095], [47.285, 9.95, 2000], [47.27, 9.985, 2403], [47.27, 10.07, 2397], [47.24, 10.07, 2649]]],                     // Kanisfluh, Mittagsspitze, Zitterklapfen, Braunarlspitze
+    [2.2, [[47.35, 10.03, 2090], [47.354, 10.1, 2230]]],
+    [2.0, [[47.25, 9.66, 1500], [47.21, 9.72, 1985], [47.22, 9.8, 2000], [47.235, 9.87, 2134], [47.21, 9.95, 2300], [47.186, 9.983, 2704]]],                         // Walserkamm bis Rote Wand
+    [2.4, [[47.21, 9.55, 1400], [47.176, 9.564, 2052], [47.16, 9.59, 2123], [47.14, 9.63, 2198], [47.1, 9.61, 2300], [47.06, 9.607, 2570], [47.049, 9.587, 2562]]],  // Drei Schwestern, Galinakopf, Naafkopf, Falknis
+    [2.4, [[47.06, 9.607, 2570], [47.06, 9.69, 2859], [47.054, 9.707, 2964], [47.04, 9.75, 2600], [47.03, 9.8, 2827], [47.016, 9.83, 2817], [47.0, 9.88, 2600], [46.98, 9.95, 2770]]],   // Schesaplana, Drusenfluh, Sulzfluh
+    [2.2, [[47.054, 9.707, 2964], [47.11, 9.72, 2401], [47.15, 9.74, 1967], [47.2, 9.66, 1778]]],                                                                   // Fundelkopf, Mondspitze
+    [2.0, [[47.03, 9.8, 2700], [47.0906, 9.77, 2643], [47.12, 9.8, 2100]]],                                                                                         // Zimba
+    [2.6, [[47.01, 9.61, 2376], [46.97, 9.65, 2100]]],                                                                                                              // Vilan
+    [2.8, [[46.93, 9.5, 2400], [46.9, 9.47, 2805], [46.88, 9.42, 2700]]],                                                                                           // Calanda
+    [2.8, [[47.0, 9.4, 2200], [46.959, 9.388, 2844], [46.93, 9.33, 2900], [46.9, 9.32, 3247], [46.89, 9.23, 3000]]],                                                 // Pizol, Ringelspitz
+    [2.2, [[47.07, 9.42, 1830], [47.09, 9.43, 2310], [47.11, 9.41, 2343], [47.14, 9.37, 2384], [47.15, 9.33, 2385], [47.16, 9.26, 2300], [47.15, 9.2, 2280], [47.13, 9.12, 2200]]],   // Gonzen, Alvier, Churfirsten
+    [2.0, [[47.14, 9.37, 2384], [47.16, 9.4, 2163], [47.19, 9.42, 1700]]],
+    [1.8, [[47.3, 9.5, 1500], [47.2836, 9.4853, 1794], [47.265, 9.465, 1750], [47.25, 9.45, 1860], [47.235, 9.415, 2065], [47.22, 9.39, 2122], [47.21, 9.36, 2100]]],  // Hoher Kasten, Stauberen, Kreuzberge
+    [1.8, [[47.283, 9.43, 1650], [47.27, 9.41, 2056], [47.255, 9.39, 2150], [47.24, 9.372, 2435], [47.22, 9.35, 2373], [47.2, 9.32, 2000]]],                          // Marwees, Altmann
+    [1.8, [[47.3, 9.42, 1500], [47.283, 9.4, 1925], [47.26, 9.36, 2194], [47.249, 9.343, 2502], [47.235, 9.31, 2200], [47.22, 9.27, 1900], [47.19, 9.2, 1700], [47.19, 9.12, 1950]]],   // Ebenalp, Säntis, Speer
+    [1.8, [[47.249, 9.343, 2502], [47.29, 9.33, 1663], [47.34, 9.33, 1306], [47.37, 9.3, 1000]]],                                                                   // Kronberg, Hundwiler Höhi
+    [1.6, [[47.2836, 9.4853, 1794], [47.33, 9.47, 1506], [47.36, 9.45, 1100]]],                                                                                     // Fähnern
+    [1.6, [[47.36, 9.42, 1000], [47.38, 9.47, 1251], [47.4, 9.51, 1100], [47.415, 9.545, 1110], [47.435, 9.515, 1120], [47.455, 9.48, 964], [47.45, 9.42, 900], [47.41, 9.39, 884], [47.45, 9.3, 900], [47.48, 9.2, 750]]],   // Gäbris, St. Anton, Kaien, Rorschacherberg
+    [1.3, [[47.435, 9.515, 1120], [47.46, 9.53, 900], [47.45, 9.59, 680]]],
+    [2.5, [[47.52, 9.25, 560], [47.58, 9.1, 620], [47.65, 8.95, 700]]]                                                                                              // Thurgauer Hügel
+  ];
+  var VALLEYS = [                                                                              // Talböden: Rheintal, Walgau, Seeztal [Breite, Länge, halbe Breite km, Höhe]
+    [[47.52, 9.66, 5.0, 400], [47.43, 9.69, 4.0, 405], [47.33, 9.61, 4.2, 420], [47.24, 9.58, 3.0, 440], [47.17, 9.5, 2.2, 450], [47.1, 9.49, 2.0, 470], [47.05, 9.45, 1.8, 480], [46.98, 9.53, 1.4, 510]],
+    [[47.24, 9.6, 1.2, 460], [47.2, 9.7, 1.2, 500], [47.155, 9.82, 1.0, 560], [47.12, 9.9, 0.6, 650]],
+    [[47.05, 9.44, 1.5, 480], [47.08, 9.33, 1.2, 440], [47.12, 9.2, 1.2, 420]]
+  ];
+  var SEG = [];
+  RIDGES.forEach(function (r) { for (var i = 0; i < r[1].length - 1; i++) { var a = r[1][i], b = r[1][i + 1], p = km(a[0], a[1]), q = km(b[0], b[1]), m = r[0] * 5; SEG.push({ ax: p[0], ay: p[1], dx: q[0] - p[0], dy: q[1] - p[1], l2: Math.pow(q[0] - p[0], 2) + Math.pow(q[1] - p[1], 2), ha: a[2], hb: b[2], w: r[0], x0: Math.min(p[0], q[0]) - m, x1: Math.max(p[0], q[0]) + m, y0: Math.min(p[1], q[1]) - m, y1: Math.max(p[1], q[1]) + m }); } });
+  var VSEG = [];
+  VALLEYS.forEach(function (v) { for (var i = 0; i < v.length - 1; i++) { var p = km(v[i][0], v[i][1]), q = km(v[i + 1][0], v[i + 1][1]); VSEG.push({ ax: p[0], ay: p[1], dx: q[0] - p[0], dy: q[1] - p[1], l2: Math.pow(q[0] - p[0], 2) + Math.pow(q[1] - p[1], 2), wa: v[i][2], wb: v[i + 1][2], ha: v[i][3], hb: v[i + 1][3] }); } });
+  function hsh(i, j) { var s = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return s - Math.floor(s); }
+  function vn(x, y) { var xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf); return (hsh(xi, yi) * (1 - u) + hsh(xi + 1, yi) * u) * (1 - v) + (hsh(xi, yi + 1) * (1 - u) + hsh(xi + 1, yi + 1) * u) * v; }
+  function ridged(x, y) { var s = 0, a = 0.5, f = 1, t = 0; for (var o = 0; o < 4; o++) { s += a * (1 - Math.abs(2 * vn(x * f + o * 17.3, y * f - o * 9.1) - 1)); t += a; a *= 0.5; f *= 2.1; } return s / t; }
+  function hAt(x, y) {                                                 // Geländehöhe in Metern an einem Punkt (km östlich, km nördlich des Parks)
+    var best = FL, i, s, t, d, hs, c;
+    for (i = 0; i < SEG.length; i++) {
+      s = SEG[i]; if (x < s.x0 || x > s.x1 || y < s.y0 || y > s.y1) continue;
+      t = clamp(((x - s.ax) * s.dx + (y - s.ay) * s.dy) / s.l2, 0, 1); d = Math.hypot(x - s.ax - t * s.dx, y - s.ay - t * s.dy);
+      hs = s.ha + (s.hb - s.ha) * t - 0.16 * (Math.min(s.ha, s.hb) - FL) * Math.sin(Math.PI * t);                // Sattel zwischen zwei Gipfeln
+      c = FL + (hs - FL) * Math.exp(-Math.pow(d / s.w, 1.12)); if (c > best) best = c;
+    }
+    var prom = best - FL; if (prom < 25) return FL;
+    best += prom * 0.34 * (ridged(x * 0.5 + 3.1, y * 0.5 - 7.7) - 0.56) + (vn(x * 2.3, y * 2.3) - 0.5) * 70 * clamp(prom / 400, 0, 1);
+    for (i = 0; i < VSEG.length; i++) {
+      s = VSEG[i]; t = clamp(((x - s.ax) * s.dx + (y - s.ay) * s.dy) / s.l2, 0, 1); d = Math.hypot(x - s.ax - t * s.dx, y - s.ay - t * s.dy);
+      var hw = s.wa + (s.wb - s.wa) * t, vf = s.ha + (s.hb - s.ha) * t, m = smooth(hw, hw + 2.4, d); if (m < 1) best = vf + (Math.max(best, vf) - vf) * m;
+    }
+    return Math.max(FL, best - 30);
+  }
+  function S(D) { return 4100 + 1100 * Math.log(1 + D / 6); }           // gestauchte Entfernung in der Szene
+  var CX = -100, CY = -20;
+  function place(x, y, h, out) { var D = Math.hypot(x, y), s = S(D); out[0] = CX + x / D * s; out[1] = Math.max(0, h - FL) * s / (D * 1000) * EXF(D); out[2] = -(CY + y / D * s); return out; }
+
+  var A0 = 66, A1 = 284, NA = 545, NR = 210, D0 = 5, D1 = 86, n = (NA + 1) * (NR + 1), pos = new Float32Array(n * 3), col = new Float32Array(n * 3), hz = new Float32Array(n), HH = new Float32Array(n), XY = new Float32Array(n * 2), ia, ir, o, tmp = [0, 0, 0];
+  for (ir = 0; ir <= NR; ir++) { var D = D0 * Math.pow(D1 / D0, ir / NR); for (ia = 0; ia <= NA; ia++) { var th = (A0 + (A1 - A0) * ia / NA) * Math.PI / 180, x = D * Math.sin(th), y = D * Math.cos(th); o = ir * (NA + 1) + ia; XY[o * 2] = x; XY[o * 2 + 1] = y; HH[o] = hAt(x, y); place(x, y, HH[o], tmp); pos[o * 3] = tmp[0]; pos[o * 3 + 1] = tmp[1]; pos[o * 3 + 2] = tmp[2]; } }
+  // Farben: Wald, Fels, Schnee nach Höhe; Licht von Nordwesten; mit der Entfernung blauer und blasser; am Fuß im Dunst aufgelöst
+  var cLow = C('#97cf93'), cMid = C('#79b09d'), cRock = C('#8ea3bd'), cSnow = C('#ffffff'), cShade = C('#7f97c2'), cHaze = C('#b4cbe4'), L = new THREE.Vector3(-0.7, 0.62, 0.25).normalize(), nv = new THREE.Vector3(), c = new THREE.Color();
+  for (ir = 0; ir <= NR; ir++) for (ia = 0; ia <= NA; ia++) {
+    o = ir * (NA + 1) + ia; var h = HH[o], a = Math.max(0, ia - 1), b = Math.min(NA, ia + 1), r0 = Math.max(0, ir - 1), r1 = Math.min(NR, ir + 1), oa = ir * (NA + 1) + a, ob = ir * (NA + 1) + b, o0 = r0 * (NA + 1) + ia, o1 = r1 * (NA + 1) + ia;
+    var ex = (XY[ob * 2] - XY[oa * 2]) * 1000, ey = (XY[ob * 2 + 1] - XY[oa * 2 + 1]) * 1000, eh = (HH[ob] - HH[oa]), fx = (XY[o1 * 2] - XY[o0 * 2]) * 1000, fy = (XY[o1 * 2 + 1] - XY[o0 * 2 + 1]) * 1000, fh = (HH[o1] - HH[o0]);
+    nv.set(ey * fh - eh * fy, ex * fy - ey * fx, eh * fx - ex * fh); if (nv.y < 0) nv.negate(); nv.normalize();          // (Ost, oben, Nord)
+    var EX = EXF(Math.hypot(XY[o * 2], XY[o * 2 + 1])); eh *= EX; fh *= EX; nv.set(ey * fh - eh * fy, ex * fy - ey * fx, eh * fx - ex * fh); if (nv.y < 0) nv.negate(); nv.normalize();
+    var lit = clamp(nv.x * L.x + nv.y * L.y + nv.z * L.z, 0, 1), steep = 1 - nv.y, Dk = Math.hypot(XY[o * 2], XY[o * 2 + 1]), nz = vn(XY[o * 2] * 1.7, XY[o * 2 + 1] * 1.7);
+    c.copy(cLow).lerp(cMid, smooth(700, 1300, h)).lerp(cRock, smooth(1350, 1900, h + nz * 200));
+    var snow = smooth(1850, 2250, h + nz * 320 - steep * 260); c.lerp(cSnow, snow);
+    var sh = 0.55 + 0.56 * lit; c.multiplyScalar(sh); c.lerp(cShade, (1 - lit) * (0.25 + 0.4 * snow));
+    c.lerp(cHaze, clamp(0.08 + Dk / 105, 0, 0.6) * (1 - 0.45 * snow));
+    col[o * 3] = c.r; col[o * 3 + 1] = c.g; col[o * 3 + 2] = c.b; hz[o] = 1 - smooth(0, 520 + Dk * 6, h - FL);
+  }
+  var idx = [];
+  for (ir = 0; ir < NR; ir++) for (ia = 0; ia < NA; ia++) { var q0 = ir * (NA + 1) + ia, q1 = q0 + 1, q2 = q0 + NA + 1, q3 = q2 + 1; if (Math.max(HH[q0], HH[q1], HH[q2], HH[q3]) - FL < 6) continue; idx.push(q0, q2, q1, q1, q2, q3); }
+  var geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3)); geo.setAttribute('hz', new THREE.BufferAttribute(hz, 1)); geo.setIndex(new THREE.BufferAttribute(new Uint32Array(idx), 1));
+  var mat = new THREE.ShaderMaterial({
+    uniforms: { uNight: NIGHTU, uFog: { value: scene.fog.color } }, side: THREE.DoubleSide,
+    vertexShader: 'attribute vec3 color; attribute float hz; varying vec3 vC; varying float vH;\nvoid main() { vC = color; vH = hz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform float uNight; uniform vec3 uFog; varying vec3 vC; varying float vH;\nvoid main() { vec3 c = mix(vC, vec3(0.006, 0.012, 0.04) + vC * vec3(0.02, 0.035, 0.1) + pow(min(vC.r, vC.g), 4.0) * vec3(0.06, 0.08, 0.13), uNight); gl_FragColor = vec4(c, 1.0);\n  #include <encodings_fragment>\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, uFog, vH);\n}'      // Dunst wie der Szenennebel erst nach der Farbraumwandlung
+  });
+  var alps = new THREE.Mesh(geo, mat); alps.frustumCulled = false; scene.add(alps);
+
+  // Taghimmel: am Horizont der helle Dunst der Karte, nach oben weiches Blau
+  var R = 3400, sg = new THREE.SphereGeometry(R, 32, 18), sp = sg.attributes.position, sc = new Float32Array(sp.count * 3), hor = C(PAL.base), mid = C('#a9d1f3'), zen = C('#7db6e8');
+  for (o = 0; o < sp.count; o++) { var e = clamp(sp.getY(o) / R, 0, 1); c.copy(hor).lerp(mid, smooth(0.0, 0.2, Math.pow(e, 0.6))).lerp(zen, smooth(0.2, 1, e)); sc[o * 3] = c.r; sc[o * 3 + 1] = c.g; sc[o * 3 + 2] = c.b; }
+  sg.setAttribute('color', new THREE.BufferAttribute(sc, 3));
+  var daySky = new THREE.Mesh(sg, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false })); daySky.renderOrder = -2; daySky.frustumCulled = false; scene.add(daySky);
+  // Der Szenennebel wird nach der Farbraumwandlung eingemischt; damit ferner See, Himmel am Horizont und Bergfuß dieselbe Farbe zeigen, bekommt er den fertigen Bildschirmwert
+  function fogFix() { scene.fog.color.copy(night ? NBG : DAYBG).convertLinearToSRGB(); }
+  var baseNight = setNight; setNight = function (on) { baseNight(on); daySky.visible = !on; fogFix(); }; fogFix();
+  sky.children[1].scale.setScalar(2.7);                                  // Sterne hinter die Berge
+  daySky.visible = !night;
+
+  camera.far = 9500; camera.updateProjectionMatrix(); controls.maxPolarAngle = 1.45;      // flacher kippen, damit der Horizont auch in der Kartenansicht ins Bild kommt
+
+  // Gipfelnamen
+  [['Säntis', 47.249, 9.343, 2502], ['Schesaplana', 47.054, 9.707, 2964], ['Pfänder', 47.5075, 9.7797, 1064], ['Hoher Kasten', 47.2836, 9.4853, 1794], ['Drei Schwestern', 47.176, 9.564, 2052], ['Hoher Freschen', 47.306, 9.789, 2004],
+   ['Altmann', 47.24, 9.372, 2435], ['Zimba', 47.0906, 9.77, 2643], ['Pizol', 46.959, 9.388, 2844], ['Hohe Kugel', 47.326, 9.735, 1645], ['Staufen', 47.39, 9.76, 1465], ['Alvier', 47.11, 9.41, 2343], ['Gäbris', 47.38, 9.47, 1251], ['Kanisfluh', 47.33, 9.925, 2044], ['Falknis', 47.049, 9.587, 2562]].forEach(function (p) {
+    var q = km(p[1], p[2]), hh = Math.max(p[3], hAt(q[0], q[1])), v = place(q[0], q[1], hh, [0, 0, 0]), e = document.createElement('div'); e.className = 'maplabel peak'; e.textContent = p[0] + ' ' + de(p[3]) + ' m'; $('labels').appendChild(e);
+    LABELS.push({ t: p[0], c: 'peak', far: 1e9, el: e, w: e.offsetWidth + 10, h: e.offsetHeight + 6, p: new THREE.Vector3(v[0], v[1] + 55, v[2]) });
+  });
+})();
+
+// ================= Mehr Wirklichkeit im Park: Bodentexturen, scharfe Wege, Sonne und Mond, echte Schatten, Spritzwasser =================
+
+// ---------- kachelbare Detailtexturen (um Mittelgrau herum, werden mit der Bodenfarbe multipliziert) ----------
+function tileTex(draw) {
+  var n = 512, cv = document.createElement('canvas'); cv.width = cv.height = n; var g = cv.getContext('2d'); g.fillStyle = 'rgb(128,128,128)'; g.fillRect(0, 0, n, n);
+  function wrap(x, y, m, fn) { for (var ox = -n; ox <= n; ox += n) for (var oy = -n; oy <= n; oy += n) { var px = x + ox, py = y + oy; if (px > -m && px < n + m && py > -m && py < n + m) fn(px, py); } }
+  draw(g, n, wrap);
+  var im = g.getImageData(0, 0, n, n), d = im.data, s = [0, 0, 0], i, k; for (i = 0; i < d.length; i += 4) { s[0] += d[i]; s[1] += d[i + 1]; s[2] += d[i + 2]; }
+  for (k = 0; k < 3; k++) s[k] = 128 / (s[k] / (n * n)); for (i = 0; i < d.length; i += 4) { d[i] = Math.min(255, d[i] * s[0]); d[i + 1] = Math.min(255, d[i + 1] * s[1]); d[i + 2] = Math.min(255, d[i + 2] * s[2]); }
+  g.putImageData(im, 0, 0);                                        // Mittelwert genau 128: aus der Ferne (Mipmaps) bleibt die Kartenfarbe unverändert
+  var t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); return t;
+}
+var grassTex = tileTex(function (g, n, wrap) {
+  var r = rng(77), i;
+  for (i = 0; i < 80; i++) (function () { var x = r() * n, y = r() * n, rad = 18 + r() * 62, li = r() < 0.5, c = li ? '196,206,120' : '38,70,52'; wrap(x, y, rad, function (px, py) { var gr = g.createRadialGradient(px, py, 0, px, py, rad); gr.addColorStop(0, 'rgba(' + c + ',0.24)'); gr.addColorStop(1, 'rgba(' + c + ',0)'); g.fillStyle = gr; g.fillRect(px - rad, py - rad, 2 * rad, 2 * rad); }); })();
+  g.lineCap = 'round';
+  for (i = 0; i < 12000; i++) (function () {
+    var x = r() * n, y = r() * n, len = 4 + r() * 10, a = r() * 6.283, bend = (r() - 0.5) * 5, c = r(), col = c < 0.3 ? '52,88,58' : c < 0.74 ? '118,150,90' : '192,208,126';
+    g.strokeStyle = 'rgba(' + col + ',' + (0.5 + r() * 0.4).toFixed(2) + ')'; g.lineWidth = 0.8 + r() * 1.1;
+    wrap(x, y, 16, function (px, py) { g.beginPath(); g.moveTo(px, py); g.quadraticCurveTo(px + Math.cos(a) * len * 0.5 + bend, py + Math.sin(a) * len * 0.5 - bend, px + Math.cos(a) * len, py + Math.sin(a) * len); g.stroke(); });
+  })();
+});
+var gravelTex = tileTex(function (g, n, wrap) {
+  var r = rng(1234), i;
+  for (i = 0; i < 6000; i++) (function () {
+    var x = r() * n, y = r() * n, rad = 1.5 + r() * r() * 5.2, v = 92 + r() * 104, rot = r() * 3.14, sq = 0.62 + r() * 0.38;
+    wrap(x, y, 9, function (px, py) {
+      g.fillStyle = 'rgba(38,38,44,0.5)'; g.beginPath(); g.ellipse(px + 0.9, py + 1.1, rad, rad * sq, rot, 0, 6.3); g.fill();
+      g.fillStyle = 'rgb(' + Math.round(v + 7) + ',' + Math.round(v + 2) + ',' + Math.round(v - 9) + ')'; g.beginPath(); g.ellipse(px, py, rad, rad * sq, rot, 0, 6.3); g.fill();
+      if (rad > 3) { g.fillStyle = 'rgba(255,255,255,0.22)'; g.beginPath(); g.ellipse(px - rad * 0.25, py - rad * 0.25, rad * 0.45, rad * sq * 0.4, rot, 0, 6.3); g.fill(); }
+    });
+  })();
+});
+var maskTex = new THREE.CanvasTexture(pathMaskCv); maskTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+// ---------- Bodenmaterial: Wege gestochen scharf aus der Abstandskarte, Gras- und Kiesstruktur in der Nähe ----------
+(function () {
+  var prev = ground.material.onBeforeCompile, DETAIL = [
+    '  vec2 wp = uRect.xy + vUv * uRect.zw; float dCam = 1.0 / gl_FragCoord.w; float dk = 1.0 - smoothstep(35.0, 150.0, dCam);',
+    '  vec3 gb = diffuseColor.rgb; float sd = texture2D(tMask, vUv).r; float fw = max(fwidth(sd) * 0.8, 0.003);',
+    '  float ef = smoothstep(0.0, 9.0, uRect.y + uRect.w - wp.y) * smoothstep(2.0, 24.0, wp.x - uRect.x) * smoothstep(0.0, 12.0, uRect.x + uRect.z - wp.x);',
+    '  float rim = smoothstep(0.44 - fw, 0.44 + fw, sd) * ef, pth = smoothstep(0.5 - fw, 0.5 + fw, sd) * ef;',
+    '  float grassK = smoothstep(0.05, 0.2, gb.g - max(gb.r, gb.b)) * (1.0 - rim), waterK = smoothstep(0.05, 0.2, gb.b - max(gb.r, gb.g));',
+    '  gb = mix(gb, gb * uEdge, rim); gb = mix(gb, uPath, pth);',
+    '  float stoneK = max(pth, (1.0 - grassK) * (1.0 - waterK) * (1.0 - rim));',
+    '  vec3 gt = texture2D(tGrass, wp / 3.3).rgb * 2.0; float g2 = texture2D(tGrass, wp / 23.0 + 0.31).g * 2.0; vec3 gv = texture2D(tGravel, wp / 1.9).rgb * 2.0; float gv2 = texture2D(tGravel, wp / 13.0 + 0.17).g * 2.0;',
+    '  gb *= mix(vec3(1.0), gt * mix(1.0, g2, 0.55), grassK * dk); gb *= mix(vec3(1.0), gv * mix(1.0, gv2, 0.3), stoneK * dk * 0.85);',
+    '  diffuseColor.rgb = gb;', ''].join('\n');
+  ground.material.extensions = { derivatives: true };
+  ground.material.onBeforeCompile = function (sh) {
+    prev(sh);
+    sh.uniforms.tMask = { value: maskTex }; sh.uniforms.tGrass = { value: grassTex }; sh.uniforms.tGravel = { value: gravelTex };
+    sh.uniforms.uRect = { value: new THREE.Vector4(X0, Y0, SPANX, SPANY) }; sh.uniforms.uPath = { value: C('#f3f0e4') }; sh.uniforms.uEdge = { value: new THREE.Color(0.62, 0.7, 0.55) };      // schmaler dunkler Saum, wo das Gras an den Kies stößt
+    sh.fragmentShader = 'uniform sampler2D tMask; uniform sampler2D tGrass; uniform sampler2D tGravel; uniform vec4 uRect; uniform vec3 uPath; uniform vec3 uEdge;\n' + sh.fragmentShader.replace('#include <map_fragment>\n', '#include <map_fragment>\n' + DETAIL);
+  };
+})();
+
+// ---------- Sonne und Mond: sichtbar am Himmel, Richtung des Lichts, echte Schatten ----------
+var MOONV = new THREE.Vector3(0.478, 0.669, 0.569).normalize(), SUNN = SUNV.clone().normalize(), LC = new THREE.Vector3((X0 + X1) / 2, 0, -(Y0 + Y1) / 2);
+var shadowMat = new THREE.ShadowMaterial({ color: C('#1b2f45'), opacity: 0.3 }); shadowMat.polygonOffset = true; shadowMat.polygonOffsetFactor = -1; shadowMat.polygonOffsetUnits = -1;
+var shadowMesh = new THREE.Mesh(ground.geometry, shadowMat); shadowMesh.position.copy(ground.position); shadowMesh.receiveShadow = true; shadowMesh.frustumCulled = false; scene.add(shadowMesh);
+function glowTexture(draw) { var cv = document.createElement('canvas'); cv.width = cv.height = 256; draw(cv.getContext('2d')); return new THREE.CanvasTexture(cv); }
+function skyDisc(v, size, tex, additive) {
+  var m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending }));
+  m.position.copy(v).multiplyScalar(3000); m.lookAt(0, 0, 0); m.renderOrder = -1; m.frustumCulled = false; scene.add(m); return m;
+}
+var sunDisc = skyDisc(SUNN, 1500, glowTexture(function (g) {
+  var gr = g.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.055, 'rgba(255,253,240,1)'); gr.addColorStop(0.075, 'rgba(255,240,190,0.55)'); gr.addColorStop(0.2, 'rgba(255,228,160,0.2)'); gr.addColorStop(0.5, 'rgba(255,225,170,0.06)'); gr.addColorStop(1, 'rgba(255,225,170,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+}), true);
+var moonDisc = skyDisc(MOONV, 760, glowTexture(function (g) {
+  var gr = g.createRadialGradient(128, 128, 0, 128, 128, 128); gr.addColorStop(0.2, 'rgba(190,210,255,0.22)'); gr.addColorStop(0.5, 'rgba(170,195,255,0.07)'); gr.addColorStop(1, 'rgba(170,195,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  g.fillStyle = '#f4f1e2'; g.beginPath(); g.arc(128, 128, 27, 0, 7); g.fill();
+  g.fillStyle = 'rgba(176,180,186,0.5)'; [[-8, -6, 7], [9, 4, 5], [-2, 11, 4], [7, -12, 3.5], [-13, 6, 3]].forEach(function (c) { g.beginPath(); g.arc(128 + c[0], 128 + c[1], c[2], 0, 7); g.fill(); });
+}), false);
+function aimLight(v) {                                             // Licht ausrichten und den Schattenbereich knapp um den Park legen
+  sun.target.position.copy(LC); sun.position.copy(LC).addScaledVector(v, 800);
+  var z = v.clone(), x = new THREE.Vector3(0, 1, 0).cross(z).normalize(), y = z.clone().cross(x), c = new THREE.Vector3(), b = [1e9, -1e9, 1e9, -1e9, 1e9, -1e9];
+  [X0, X1].forEach(function (px) { [-Y1, -Y0].forEach(function (pz) { [0, 52].forEach(function (py) { c.set(px, py, pz).sub(LC); var u = c.dot(x), w = c.dot(y), d = 800 - c.dot(z); b[0] = Math.min(b[0], u); b[1] = Math.max(b[1], u); b[2] = Math.min(b[2], w); b[3] = Math.max(b[3], w); b[4] = Math.min(b[4], d); b[5] = Math.max(b[5], d); }); }); });
+  var cam = sun.shadow.camera; cam.left = b[0] - 4; cam.right = b[1] + 4; cam.bottom = b[2] - 4; cam.top = b[3] + 4; cam.near = b[4] - 20; cam.far = b[5] + 20; cam.updateProjectionMatrix();
+}
+(function () {
+  var big = renderer.capabilities.maxTextureSize >= 8192 && !(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  renderer.shadowMap.enabled = true; renderer.shadowMap.type = big ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap; renderer.shadowMap.autoUpdate = false;
+  scene.add(sun.target); sun.castShadow = true; sun.shadow.mapSize.set(big ? 4096 : 2048, big ? 4096 : 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = big ? 0.22 : 0.4;
+  scene.traverse(function (o) { if (o.isMesh && o.material && o.material.isMeshLambertMaterial) { o.castShadow = true; o.receiveShadow = true; } });
+  function noCast(root) { root.traverse(function (o) { o.castShadow = false; }); }
+  boats.forEach(function (b) { noCast(b.g); }); if (ship) noCast(ship.g);       // Bewegliches wirft keinen (stehenden) Schatten
+  var prevNight = setNight;
+  function applyLight() {
+    aimLight(night ? MOONV : SUNN); hemi.intensity = night ? 0.5 : 0.86; sun.intensity = night ? 0.2 : 0.44;
+    shadowMat.opacity = night ? 0.3 : 0.3; shadowMat.color.copy(night ? C('#02040e') : C('#1b2f45')); sunDisc.visible = !night; moonDisc.visible = night; renderer.shadowMap.needsUpdate = true;
+  }
+  setNight = function (on) { prevNight(on); applyLight(); }; applyLight();
+})();
+
+// ---------- Schnittstelle zur Flutter-App ----------
+// Flutter ruft ParkApp.* auf und bekommt Ereignisse als JSON über ParkChannel.postMessage:
+//   {t:'ready'} · {t:'tree', id} · {t:'place', title} · {t:'heading', deg} · {t:'outside'}
+var ParkApp = window.ParkApp = {};
+var paused = false, running = false;
+function post(msg) { try { if (window.ParkChannel) window.ParkChannel.postMessage(JSON.stringify(msg)); } catch (e) {} }
+function resume() { paused = false; if (running) return; running = true; clock.getDelta(); requestAnimationFrame(frame); }
+var lastHeading = null, lastHeadingAt = 0;
+function reportHeading(deg) {
+  var now = performance.now();
+  if (lastHeading !== null && (Math.abs(deg - lastHeading) < 0.5 || now - lastHeadingAt < 50)) return;
+  lastHeading = deg; lastHeadingAt = now; post({ t: 'heading', deg: deg });
+}
+
+// Park-Koordinaten (Meter, x = Ost, y = Nord) <-> WGS84; Ursprung wie im Kataster
+var LAT0 = 47.55735, LON0 = 9.6614, KX = 75130, KY = 111320;
+function geoToXY(lat, lon) { return [(lon - LON0) * KX, (lat - LAT0) * KY]; }
+me.visible = false;
+
+// ---------- Auswahl ----------
+var selected = null, pin = $('pin');
+function setColor(t, c) { t.mesh.setColorAt(t.slot, c); t.mesh.instanceColor.needsUpdate = true; }
+var selBase = 1;
+selRing.material.color.set(0x1fae5a); selRing.material.opacity = 1;
+function select(t, fly) {
+  if (selected) setColor(selected, selected.col.clone().convertSRGBToLinear());
+  selected = t; pin.hidden = !t; selRing.visible = !!t;
+  if (!t) return;
+  // Goldgelb statt Grün: der gewählte Baum fällt zwischen 476 grünen sofort auf
+  setColor(t, new THREE.Color().setHSL(0.13, 0.9, 0.6).convertSRGBToLinear());
+  sit(selRing, t.x, t.y, 0.25); selBase = t.dd * 0.5 + 2.2; selRing.scale.setScalar(selBase);
+  if (fly !== false) targetGoal = new THREE.Vector3(t.x, t.gy, -t.y);
+}
+function stepFx(dt, time) { if (selected) selRing.scale.setScalar(selBase * (1 + 0.1 * Math.sin(time * 4))); stepTwist(dt); }
+
+// ---------- Sterne: Bäume mit ausgearbeiteten biologischen Fakten ----------
+var STARS = [], starsEl = document.createElement('div');
+starsEl.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden'; $('app').appendChild(starsEl);
+var STAR_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3 6.1 20.6l1.3-6.6L2.5 9.4l6.6-.8z"/></svg>';
+ParkApp.setStars = function (ids) {
+  STARS.forEach(function (s) { s.el.remove(); }); STARS = [];
+  TREES.filter(function (t) { return ids.indexOf(t.id) >= 0; }).forEach(function (t) {
+    var el = document.createElement('button'); el.type = 'button'; el.className = 'star-pin'; el.setAttribute('aria-label', t.de + ' mit Wissenswertem'); el.innerHTML = STAR_ICON;
+    el.addEventListener('click', function (ev) { ev.stopPropagation(); select(t); post({ t: 'tree', id: t.id }); });
+    starsEl.appendChild(el); STARS.push({ t: t, el: el, pos: new THREE.Vector3(t.x, t.gy + t.top + 3.2, -t.y) });
+  });
+};
+function layoutStars() {
+  STARS.forEach(function (s) {
+    var p = project(s.pos);
+    if (p && s.t !== selected) { s.el.style.visibility = 'visible'; s.el.style.transform = 'translate(' + p[0].toFixed(1) + 'px,' + p[1].toFixed(1) + 'px)'; }
+    else s.el.style.visibility = 'hidden';
+  });
+}
+
+// ---------- Orte (historische Stätten) ----------
+var PLACES = [], placesEl = $('places');
+var PLACE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 8v2h20V8L12 2zM4 11v8H2v2h20v-2h-2v-8h-2v8h-3v-8h-2v8h-2v-8H9v8H6v-8H4z"/></svg>';
+function selectPlace(title, quiet) {
+  var p = PLACES.filter(function (q) { return q.title === title; })[0]; if (!p) return;
+  select(null); targetGoal = new THREE.Vector3(p.x, H(p.x, p.y), -p.y);
+  if (!quiet) post({ t: 'place', title: title });
+}
+ParkApp.setPlaces = function (list) {
+  PLACES.forEach(function (p) { p.el.remove(); }); PLACES = [];
+  list.forEach(function (p) {
+    var xy = geoToXY(p.lat, p.lon), el = document.createElement('button');
+    el.type = 'button'; el.className = 'place-pin'; el.setAttribute('aria-label', p.title); el.innerHTML = PLACE_ICON;
+    el.addEventListener('click', function (ev) { ev.stopPropagation(); selectPlace(p.title); });
+    placesEl.appendChild(el);
+    PLACES.push({ title: p.title, x: xy[0], y: xy[1], el: el, pos: W(xy[0], xy[1], 9) });
+  });
+};
+function layoutPlaces() {
+  PLACES.forEach(function (p) {
+    var s = project(p.pos);
+    if (s) { p.el.style.visibility = 'visible'; p.el.style.transform = 'translate(' + s[0].toFixed(1) + 'px,' + s[1].toFixed(1) + 'px)'; }
+    else p.el.style.visibility = 'hidden';
+  });
+}
+
+// ---------- Antippen ----------
+var ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), down = null, touches = {};
+function treeAt(ev) {
+  var r = canvas.getBoundingClientRect(); ndc.set((ev.clientX - r.left) / r.width * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ndc, camera);
+  var h = ray.intersectObjects(pickables, false);
+  if (h.length) return h[0].object.userData.list[h[0].instanceId];
+  // Fingerkuppe statt Mauszeiger: sonst den Baum nehmen, dessen Krone dem Tipp am nächsten liegt
+  var best = null, bd = 26, px = ev.clientX - r.left, py = ev.clientY - r.top;
+  TREES.forEach(function (t) {
+    var s = project(v3.set(t.x, t.gy + t.trunk + t.ch * 0.5, -t.y)); if (!s) return;
+    var d = Math.hypot(s[0] - px, s[1] - py); if (d < bd) { bd = d; best = t; }
+  });
+  return best;
+}
+// Kameragefühl: kräftigere Drehung und Zoom, Verdrehen mit zwei Fingern dreht die Karte mit Nachlauf
+controls.rotateSpeed = 1.5; controls.zoomSpeed = 1.3; controls.panSpeed = 1.1; controls.dampingFactor = 0.12;
+var twistAngle = null, twistVel = 0;
+function fingers() { var k = Object.keys(touches); return k.length === 2 ? [touches[k[0]], touches[k[1]]] : null; }
+function twistOf(f) { return Math.atan2(f[1].y - f[0].y, f[1].x - f[0].x); }
+function turnBy(a) { off.copy(camera.position).sub(controls.target).applyAxisAngle(UP, a); camera.position.copy(controls.target).add(off); }
+function stepTwist(dt) { if (twistAngle === null && Math.abs(twistVel) > 0.0004) { turnBy(twistVel); twistVel *= Math.pow(0.04, dt); } else if (twistAngle === null) twistVel = 0; }
+canvas.addEventListener('pointerdown', function (e) {
+  touches[e.pointerId] = { x: e.clientX, y: e.clientY }; canvas.classList.add('grabbing');
+  var f = fingers(); twistAngle = f ? twistOf(f) : null; twistVel = 0; azGoal = null;
+  down = Object.keys(touches).length === 1 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
+});
+window.addEventListener('pointermove', function (e) {
+  if (!touches[e.pointerId]) return; touches[e.pointerId].x = e.clientX; touches[e.pointerId].y = e.clientY;
+  var f = fingers(); if (!f || twistAngle === null) return;
+  var a = twistOf(f), d = Math.atan2(Math.sin(a - twistAngle), Math.cos(a - twistAngle)); twistAngle = a; turnBy(d); twistVel = d * 0.6 + twistVel * 0.4;
+});
+function endTouch(e) { delete touches[e.pointerId]; twistAngle = null; }
+window.addEventListener('pointercancel', function (e) { endTouch(e); down = null; });
+window.addEventListener('pointerup', function (e) {
+  endTouch(e); canvas.classList.remove('grabbing');
+  var d = down; down = null;
+  if (!d || e.target !== canvas || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8 || performance.now() - d.t > 450) return;
+  var t = treeAt(e);
+  if (t) { select(t); post({ t: 'tree', id: t.id }); }
+  else if (selected) { select(null); post({ t: 'deselect' }); }
+});
+
+// ---------- Aufrufe aus Flutter ----------
+ParkApp.selectTree = function (id) { var t = TREES.filter(function (x) { return x.id === id; })[0]; if (t) select(t); };
+ParkApp.selectPlace = function (title) { selectPlace(title, true); };
+ParkApp.clearSelection = function () { select(null); };
+ParkApp.setLocation = function (lat, lon) {
+  var xy = geoToXY(lat, lon); loc.x = xy[0]; loc.y = xy[1];
+  loc.known = xy[0] > -340 && xy[0] < 130 && xy[1] > -200 && xy[1] < 140;       // außerhalb des Parks: kein Punkt
+  me.visible = loc.known; if (loc.known) sit(me, loc.x, loc.y, 0);
+};
+ParkApp.locate = function () { if (!loc.known) { post({ t: 'outside' }); return; } targetGoal = new THREE.Vector3(loc.x, H(loc.x, loc.y), -loc.y); };
+ParkApp.toggleTilt = function () { is3D = !is3D; tiltGoal = is3D ? TILT3D : 0.03; return is3D; };
+ParkApp.resetNorth = function () { azGoal = 0; };
+ParkApp.setNight = function (on) { setNight(!!on); };
+ParkApp.pause = function (p) { if (p) paused = true; else resume(); };
+
+resume(); post({ t: 'ready' });
+
+})();
+</script>
+</body></html>

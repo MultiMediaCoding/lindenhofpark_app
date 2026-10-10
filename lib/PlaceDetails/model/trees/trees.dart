@@ -47,6 +47,7 @@ final List<Tree> trees = [
         images: []),
     BiologicalFact(
         title: "Fledermauskasten",
+        speciesWide: false,
         content:
             """Wenn sie nach oben gucken, erkennen sie, dass an dem Baum ein Fledermauskasten hängt. Diese bieten den Tieren einen guten Unterschlupf und können auch als Überwinterungsquartier genutzt werden.""",
         images: [
@@ -179,6 +180,7 @@ final List<Tree> trees = [
         images: []),
     BiologicalFact(
         title: "Leben am Baum",
+        speciesWide: false,
         content: """Neben Insekten leben auch Fledermäuse an diesem Baum.""",
         images: [
           TreeImage.ganzerBaumWinterlinde,

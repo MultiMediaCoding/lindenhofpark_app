@@ -7,16 +7,18 @@ import 'package:lindenhofpark/PlaceDetails/model/historical_places/historical_pl
 import 'package:lindenhofpark/PlacesList/FilterBox/model/map_objects_dropdown_labels.dart';
 
 class PlacesListViewModel with ChangeNotifier {
-  List<MapObject> filteredMapObjects = mapObjects;
+  List<MapObject> filteredMapObjects = allMapObjects;
   String selectedCategoryName = "Alle";
 
   // Filter the mapObjects by their title
   // Find words matching the searchText in long texts
   void findMapObjects(String searchText) {
     selectedCategoryName = "Alle";
-    filteredMapObjects = mapObjects
+    final query = searchText.toLowerCase();
+    filteredMapObjects = allMapObjects
         .where((mapObject) =>
-            mapObject.title.toLowerCase().contains(searchText.toLowerCase()))
+            mapObject.title.toLowerCase().contains(query) ||
+            mapObject.keywords.toLowerCase().contains(query))
         .toList();
 
     // Find words matching the searchText in long texts
@@ -44,9 +46,9 @@ class PlacesListViewModel with ChangeNotifier {
     selectedCategoryName = categoryLabel.title;
 
     if (categoryLabel.title == "Alle") {
-      filteredMapObjects = mapObjects;
+      filteredMapObjects = allMapObjects;
     } else {
-      filteredMapObjects = mapObjects
+      filteredMapObjects = allMapObjects
           .where((mapObject) =>
               mapObject.category.categoryName == categoryLabel.title)
           .toList();

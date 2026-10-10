@@ -1,18 +1,21 @@
+import 'package:cupertino_native/cupertino_native.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_compass/flutter_map_compass.dart';
-import 'package:flutter_map_location_marker/flutter_map_location_marker.dart';
-import 'package:flutter_map_marker_cluster/flutter_map_marker_cluster.dart';
-import 'package:lindenhofpark/Common/view/vector_icon.dart';
 import 'package:lindenhofpark/Licenses/view/licenses_view.dart';
-import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
 import 'package:lindenhofpark/Map/model/map_object.dart';
+import 'package:lindenhofpark/Map/view_model/map_view_model.dart';
+import 'package:lindenhofpark/Map/view_model/selection.dart';
 import 'package:lindenhofpark/Map/view_model/url_view_model.dart';
-import 'package:lindenhofpark/PlaceDetails/view/place_details_view.dart';
-import 'package:lindenhofpark/resources/resources.dart';
+import 'package:lindenhofpark/PlaceDetails/view/place_sheet.dart';
+import 'package:lindenhofpark/PlacesList/view/places_list_view.dart';
 import 'package:provider/provider.dart';
-import 'package:vector_map_tiles/vector_map_tiles.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
+final UrlViewModel urlViewModel = UrlViewModel();
+
+/// Die 3D-Karte mit Liquid-Glass-Bedienelementen und dem Detailblatt.
+/// Ein Antippen eines Baums oder historischen Ortes wählt ihn aus
+/// ([selectedMapObject]) und öffnet das Blatt über der Karte.
 class MapView extends StatefulWidget {
   const MapView({super.key});
 
@@ -20,200 +23,160 @@ class MapView extends StatefulWidget {
   State<MapView> createState() => _MapViewState();
 }
 
-final UrlViewModel urlViewModel = UrlViewModel();
-const styleUrl =
-    "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
-
 class _MapViewState extends State<MapView> {
+  late final MapViewModel _viewModel = MapViewModel(
+    onTreeTapped: (id) => selectedMapObject.value = _viewModel.mapObjectForTree(id),
+    onPlaceTapped: (title) =>
+        selectedMapObject.value = _viewModel.mapObjectForPlace(title),
+    onDeselected: () => selectedMapObject.value = null,
+    onOutsidePark: _showOutsidePark,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    selectedMapObject.addListener(_onSelectionChanged);
+  }
+
+  @override
+  void dispose() {
+    selectedMapObject.removeListener(_onSelectionChanged);
+    _viewModel.dispose();
+    super.dispose();
+  }
+
+  /// Auswahl aus der Suchliste oder dem Blatt: Karte folgt.
+  void _onSelectionChanged() {
+    final selected = selectedMapObject.value;
+    if (selected == null) {
+      _viewModel.clearSelection();
+    } else if (selected.treeId != null) {
+      _viewModel.selectTree(selected.treeId!);
+    } else {
+      _viewModel.selectPlace(selected.title);
+    }
+  }
+
+  void _showOutsidePark() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("Du bist gerade nicht im Lindenhofpark.")));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-        create: (_) => MapViewModel(),
-        child: Consumer<MapViewModel>(builder: (context, viewModel, child) {
-          return FlutterMap(
-            mapController: viewModel.controller,
-            options: MapOptions(
-              cameraConstraint: CameraConstraint.contain(
-                  bounds: LatLngBounds(viewModel.lindenhofparkBegin,
-                      viewModel.lindenhofparkEnd)),
-              initialZoom: 18,
-              maxZoom: 22,
-              minZoom: 10,
-              initialCenter: viewModel.lindenhofparkCenterPosition,
-              interactionOptions: const InteractionOptions(
-                enableMultiFingerGestureRace: true,
-                flags: InteractiveFlag.doubleTapDragZoom |
-                    InteractiveFlag.doubleTapZoom |
-                    InteractiveFlag.drag |
-                    InteractiveFlag.flingAnimation |
-                    InteractiveFlag.pinchZoom |
-                    InteractiveFlag.rotate |
-                    InteractiveFlag.scrollWheelZoom,
-              ),
-            ),
-            children: [
-              _map(),
-              _locationMarker(),
-              _contributorsInfo(),
-              _markersCluster(),
-              _compass()
-            ],
-          );
-        }));
-  }
-
-  Widget _map() {
-    return Consumer<MapViewModel>(builder: (context, viewModel, child) {
-      if (viewModel.style != null &&
-          viewModel.style?.theme != null &&
-          viewModel.style?.sprites != null &&
-          viewModel.style?.providers != null) {
-        return VectorTileLayer(
-            tileProviders: viewModel.style!.providers,
-            theme: viewModel.style!.theme,
-            sprites: viewModel.style!.sprites,
-            maximumZoom: 22,
-            tileOffset: TileOffset.DEFAULT,
-            layerMode: VectorTileLayerMode.vector);
-      }
-
-      return const SizedBox();
-    });
-  }
-
-  Widget _locationMarker() {
-    return Consumer<MapViewModel>(builder: (context, viewModel, child) {
-      return StreamBuilder(
-          stream: viewModel.positionStream,
-          builder: (context, snapshot) {
-            if (snapshot.hasData &&
-                snapshot.data?.latitude != null &&
-                snapshot.data?.longitude != null) {
-              return AnimatedLocationMarkerLayer(
-                position: LocationMarkerPosition(
-                    latitude: snapshot.data!.latitude,
-                    longitude: snapshot.data!.longitude,
-                    accuracy: 2),
-              );
-            }
-            return const SizedBox();
-          });
-    });
-  }
-
-  Widget _contributorsInfo() {
-    return Padding(
-      padding: const EdgeInsets.only(right: 10.0, bottom: 20.0),
-      child: RichAttributionWidget(
-        popupBorderRadius: BorderRadius.circular(10),
-        openButton: (context, open) => IconButton(
-            onPressed: () => open(),
-            icon: VectorIcon(
-              icon: FontAwesomeIcon.circleInfoSolid,
-              size: 20,
-            )),
-        closeButton: (context, close) => IconButton(
-          onPressed: () => close(),
-          icon: VectorIcon(
-            icon: FontAwesomeIcon.circleXmarkSolid,
-            size: 20,
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Stack(
+        children: [
+          WebViewWidget(controller: _viewModel.controller),
+          const _MapControls(),
+          ValueListenableBuilder<MapObject?>(
+            valueListenable: selectedMapObject,
+            builder: (context, selected, _) => selected == null
+                ? const SizedBox.shrink()
+                : PlaceSheet(
+                    mapObject: selected,
+                    onClose: () => selectedMapObject.value = null,
+                  ),
           ),
-        ),
-        attributions: [
-          TextSourceAttribution(
-            'OpenStreetMap contributors',
-            onTap: () async =>
-                await urlViewModel.launchOpenStreetMapCopyrightSite(),
-          ),
-          TextSourceAttribution('Lizenzen',
-              onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => LicensesView(),
-                    ),
-                  )),
         ],
-      ),
-    );
-  }
-
-  // Neccesarry for the clustering numbers to be shown
-  Widget _markersCluster() {
-    return Consumer<MapViewModel>(builder: (context, viewModel, child) {
-      return MarkerClusterLayerWidget(
-        options: MarkerClusterLayerOptions(
-          maxClusterRadius: 40,
-          size: const Size(40, 40),
-          markers: viewModel.markers,
-          rotate: true,
-          builder: (context, markers) {
-            return Container(
-              decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
-                  color: Color.fromARGB(255, 58, 127, 60)),
-              child: Center(
-                child: Text(
-                  markers.length.toString(),
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w600),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    });
-  }
-
-  Widget _compass() {
-    return SafeArea(
-      child: Align(
-        alignment: Alignment.topRight,
-        child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).colorScheme.surface,
-                ),
-                child: const MapCompass(
-                  icon: Icon(Icons.arrow_upward),
-                  hideIfRotatedNorth: false,
-                ))),
       ),
     );
   }
 }
 
-class MapPin extends StatelessWidget {
-  const MapPin({super.key, required this.mapObject});
-
-  final MapObject mapObject;
+class _MapControls extends StatelessWidget {
+  const _MapControls();
 
   @override
   Widget build(BuildContext context) {
-    final icon = VectorIcon(
-      icon: mapObject.category.icon,
-      size: 40,
-      color: Colors.white,
+    final viewModel = context.watch<MapViewModel>();
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topRight,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(0, 8, 8, 0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 10,
+            children: [
+              CNButton.icon(
+                icon: const CNSymbol('magnifyingglass', size: 17),
+                onPressed: () => _showSearch(context),
+              ),
+              Transform.rotate(
+                angle: viewModel.heading * 3.141592653589793 / 180,
+                child: CNButton.icon(
+                  icon: const CNSymbol('location.north.fill',
+                      size: 17, color: Color(0xFFE5533D)),
+                  onPressed: viewModel.resetNorth,
+                ),
+              ),
+              CNButton.icon(
+                icon: const CNSymbol('location', size: 17),
+                onPressed: viewModel.locate,
+              ),
+              CNButton.icon(
+                icon: CNSymbol(viewModel.is3D ? 'view.2d' : 'view.3d', size: 17),
+                onPressed: viewModel.toggleTilt,
+              ),
+              CNButton.icon(
+                icon: CNSymbol(viewModel.isNight ? 'sun.max.fill' : 'moon.fill',
+                    size: 17),
+                onPressed: viewModel.toggleNight,
+              ),
+              CNButton.icon(
+                icon: const CNSymbol('info', size: 17),
+                onPressed: () => _showCredits(context),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
+  }
 
-    return InkWell(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => PlaceDetailsView(mapObject: mapObject),
-      )),
-      child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: mapObject.category.pinColor,
-              border: Border.all(color: Colors.white, width: 3)),
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: icon,
-          )),
+  void _showSearch(BuildContext context) {
+    showCupertinoSheet<void>(
+      context: context,
+      showDragHandle: true,
+      scrollableBuilder: (context, scrollController) =>
+          PlacesListView(scrollController: scrollController),
+    );
+  }
+
+  void _showCredits(BuildContext context) {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text("Quellen"),
+        message: const Text(
+            "Bäume: Baumkataster GTL Lindau, Stand 2023\n"
+            "Wege und Gebäude: © OpenStreetMap-Mitwirkende\n"
+            "Gelände: Bayerische Vermessungsverwaltung, geodaten.bayern.de"),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(sheetContext).pop();
+              urlViewModel.launchOpenStreetMapCopyrightSite();
+            },
+            child: const Text("OpenStreetMap-Copyright"),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(sheetContext).pop();
+              Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const LicensesView()));
+            },
+            child: const Text("Lizenzen"),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: const Text("Schließen"),
+        ),
+      ),
     );
   }
 }
