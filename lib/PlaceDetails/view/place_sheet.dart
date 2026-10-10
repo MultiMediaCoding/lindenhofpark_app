@@ -10,6 +10,7 @@ import 'package:lindenhofpark/PlaceDetails/model/trees/leave_types.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/park_tree.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/tree_catalog.dart';
 import 'package:lindenhofpark/PlaceDetails/model/trees/tree_knowledge.dart';
+import 'package:lindenhofpark/PlaceDetails/view/fact_symbol.dart';
 import 'package:lindenhofpark/PlaceDetails/view/glass_card.dart';
 
 String _meters(double value) => value.toStringAsFixed(value % 1 == 0 ? 0 : 1);
@@ -41,16 +42,19 @@ class PlaceSheet extends StatelessWidget {
         snap: true,
         snapSizes: const [_small, _large],
         builder: (context, scrollController) => NativeGlass(
-          radius: 40,
-          child: CustomScrollView(
-            controller: scrollController,
-            slivers: [
-              SliverToBoxAdapter(child: _Header(onClose: onClose)),
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 24),
-                sliver: SliverToBoxAdapter(child: _content()),
-              ),
-            ],
+          radius: 32,
+          child: DefaultTextStyle.merge(
+            style: const TextStyle(fontFamily: sheetFont),
+            child: CustomScrollView(
+              controller: scrollController,
+              slivers: [
+                SliverToBoxAdapter(child: _Header(onClose: onClose)),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset + 24),
+                  sliver: SliverToBoxAdapter(child: _content()),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -62,7 +66,8 @@ class PlaceSheet extends StatelessWidget {
       return _TreeContent(tree: treeCatalog.byId(mapObject.treeId!)!);
     }
     return _PlaceContent(
-        place: historicalPlaces.getHistoricalPlaceByTitle(mapObject.title));
+      place: historicalPlaces.getHistoricalPlaceByTitle(mapObject.title),
+    );
   }
 }
 
@@ -74,21 +79,26 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 44,
+      height: 42,
       child: Stack(
-        alignment: Alignment.center,
         children: [
-          Container(
-            width: 36,
-            height: 5,
-            decoration: BoxDecoration(
-              color: sheetInk.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(3),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 7),
+              child: Container(
+                width: 57,
+                height: 3.5,
+                decoration: BoxDecoration(
+                  color: sheetInk.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
             ),
           ),
           Positioned(
-            right: 12,
-            top: 8,
+            right: 16,
+            top: 10,
             child: Semantics(
               label: "Schließen",
               button: true,
@@ -112,6 +122,7 @@ class _Header extends StatelessWidget {
   }
 }
 
+/// Maße aus Apple Karten (Punkte): Foto 4:3, 23 Seitenrand, Ecken 22.
 class _Hero extends StatelessWidget {
   const _Hero({required this.image});
 
@@ -120,11 +131,11 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.fromLTRB(7, 0, 7, 16),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(22),
         child: AspectRatio(
-          aspectRatio: 16 / 10,
+          aspectRatio: 4 / 3,
           child: Image.asset(image, fit: BoxFit.cover),
         ),
       ),
@@ -132,6 +143,7 @@ class _Hero extends StatelessWidget {
   }
 }
 
+/// Titel wie in Apple Karten: groß, normal stark, breite Schrift.
 class _Title extends StatelessWidget {
   const _Title({required this.title, required this.subtitle});
 
@@ -141,19 +153,26 @@ class _Title extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 14),
+      padding: const EdgeInsets.fromLTRB(7, 0, 7, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  height: 1.1,
-                  color: sheetInk)),
-          const SizedBox(height: 4),
-          Text(subtitle,
-              style: const TextStyle(fontSize: 17, color: sheetInkSoft)),
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w400,
+              height: 1.15,
+              letterSpacing: 0.2,
+              fontFamily: sheetTitleFont,
+              color: sheetInk,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: const TextStyle(fontSize: 15, color: sheetInkSoft),
+          ),
         ],
       ),
     );
@@ -176,31 +195,39 @@ class _TreeContent extends StatelessWidget {
       children: [
         if (image != null) _Hero(image: image),
         _Title(title: TreeKnowledge.nameOf(tree), subtitle: tree.latinName),
-        InfoRows(rows: [
-          if (specimen?.age != null)
-            ("Alter", "${specimen!.age} Jahre")
-          else
-            ("Alter", tree.ageStage),
-          ("Höhe", "${_meters(specimen?.height.toDouble() ?? tree.height)} m"),
-          ("Krone", "${_meters(tree.crownDiameter)} m Durchmesser"),
-          ("Stammumfang", "${_meters(tree.trunkCircumferenceCm / 100)} m"),
-          ("Blätter", leaves ?? ""),
-          if (specimen != null) ("Herkunft", specimen.origin),
-          ("Standort", tree.parcel),
-          ("Baumplakette", tree.id),
-        ]),
+        InfoRows(
+            rows: [
+              if (specimen?.age != null)
+                ("Alter", "${specimen!.age} Jahre")
+              else
+                ("Alter", tree.ageStage),
+              (
+                "Höhe",
+                "${_meters(specimen?.height.toDouble() ?? tree.height)} m",
+              ),
+              ("Krone", "${_meters(tree.crownDiameter)} m Durchmesser"),
+              ("Stammumfang", "${_meters(tree.trunkCircumferenceCm / 100)} m"),
+              ("Blätter", leaves ?? ""),
+              if (specimen != null) ("Herkunft", specimen.origin),
+              ("Standort", tree.parcel),
+              ("Baumplakette", tree.id),
+            ],
+          ),
         if (facts.isNotEmpty) ...[
           const Padding(
-            padding: EdgeInsets.fromLTRB(8, 22, 8, 10),
-            child: Text("Wissenswertes",
-                style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: sheetInk)),
+            padding: EdgeInsets.fromLTRB(7, 14, 7, 12),
+            child: Text(
+              "Wissenswertes",
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: sheetInk,
+              ),
+            ),
           ),
           for (final fact in facts) ...[
             _FactCard(fact: fact),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
           ],
         ],
       ],
@@ -216,7 +243,7 @@ class _FactCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -227,23 +254,42 @@ class _FactCard extends StatelessWidget {
                 for (final image in fact.images.take(2))
                   Expanded(
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       child: SizedBox(
-                          height: 110,
-                          child: Image.asset(image, fit: BoxFit.cover)),
+                        height: 110,
+                        child: Image.asset(image, fit: BoxFit.cover),
+                      ),
                     ),
                   ),
               ],
             ),
             const SizedBox(height: 14),
           ],
-          Text(fact.title,
-              style: const TextStyle(
-                  fontSize: 17, fontWeight: FontWeight.w700, color: sheetInk)),
-          const SizedBox(height: 4),
-          Text(fact.content,
-              style: const TextStyle(
-                  fontSize: 16, height: 1.35, color: sheetInk)),
+          Row(
+            spacing: 12,
+            children: [
+              FactSymbol(title: fact.title),
+              Expanded(
+                child: Text(
+                  fact.title,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: sheetInk,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Divider(
+            height: 25,
+            thickness: 0.5,
+            color: sheetInk.withValues(alpha: 0.18),
+          ),
+          Text(
+            fact.content,
+            style: const TextStyle(fontSize: 17, height: 1.25, color: sheetInk),
+          ),
         ],
       ),
     );
@@ -264,9 +310,10 @@ class _PlaceContent extends StatelessWidget {
         _Title(title: place.title, subtitle: "Historischer Ort"),
         GlassCard(
           padding: const EdgeInsets.all(18),
-          child: Text(place.description,
-              style: const TextStyle(
-                  fontSize: 16, height: 1.4, color: sheetInk)),
+          child: Text(
+            place.description,
+            style: const TextStyle(fontSize: 16, height: 1.4, color: sheetInk),
+          ),
         ),
       ],
     );
