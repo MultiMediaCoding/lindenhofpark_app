@@ -515,19 +515,6 @@ class _TreeContent extends StatelessWidget {
                 label: "Herkunft",
                 value: specimen.origin,
               ),
-            (
-              symbol: symbolSpec(
-                'mappin.and.ellipse',
-                FontAwesomeIcons.locationDot,
-              ),
-              label: "Standort",
-              value: tree.parcel,
-            ),
-            (
-              symbol: symbolSpec('tag.fill', FontAwesomeIcons.tag),
-              label: "Baumplakette",
-              value: tree.id,
-            ),
           ],
         ),
         if (facts.isNotEmpty) ...[

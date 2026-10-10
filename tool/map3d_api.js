@@ -45,8 +45,22 @@ var pinIcon = (function () {
 })();
 function setColor(t, c) { t.mesh.setColorAt(t.slot, c); t.mesh.instanceColor.needsUpdate = true; }
 var selBase = 1;
+// Fokus: nach der Auswahl heranzoomen und ganz langsam um das Objekt kreisen, bis der Nutzer die Karte anfasst
+var focusDist = null, orbiting = false, ORBIT_SPEED = 0.07, selPlace = null;
+// Bäume: nah heran; Bauwerke: weiter weg, damit der ganze Komplex im Bild bleibt. Immer in die schräge 3D-Ansicht.
+function startFocus(d) {
+  focusDist = d; orbiting = !reduce;
+  if (!is3D) { is3D = true; post({ t: 'tilt', on: true }); }
+  tiltGoal = TILT3D;
+}
+function stopFocus() { focusDist = null; orbiting = false; }
 selRing.material.color.set(0x1fae5a); selRing.material.opacity = 1;
+function setPlaceSel(p) {
+  if (selPlace) selPlace.el.classList.remove('sel');
+  selPlace = p; if (p) p.el.classList.add('sel');
+}
 function select(t, fly) {
+  setPlaceSel(null);
   if (selected) setColor(selected, selected.col.clone().convertSRGBToLinear());
   selected = t; pin.hidden = !t; selRing.visible = !!t;
   if (!t) return;
@@ -54,9 +68,17 @@ function select(t, fly) {
   // Goldgelb statt Grün: der gewählte Baum fällt zwischen 476 grünen sofort auf
   setColor(t, new THREE.Color().setHSL(0.13, 0.9, 0.6).convertSRGBToLinear());
   sit(selRing, t.x, t.y, 0.25); selBase = t.dd * 0.5 + 2.2; selRing.scale.setScalar(selBase);
-  if (fly !== false) targetGoal = new THREE.Vector3(t.x, t.gy, -t.y);
+  if (fly !== false) { targetGoal = new THREE.Vector3(t.x, t.gy, -t.y); startFocus(62); }
 }
-function stepFx(dt, time) { if (selected) selRing.scale.setScalar(selBase * (1 + 0.1 * Math.sin(time * 4))); stepTwist(dt); }
+function stepFx(dt, time) {
+  if (selRing.visible) selRing.scale.setScalar(selBase * (1 + 0.1 * Math.sin(time * 4)));
+  if (focusDist !== null) {
+    off.copy(camera.position).sub(controls.target); var len = off.length();
+    if (len > focusDist + 0.5) { off.multiplyScalar((len + (focusDist - len) * Math.min(1, dt * 4)) / len); camera.position.copy(controls.target).add(off); }
+  }
+  if (orbiting && twistAngle === null) turnBy(-ORBIT_SPEED * dt);
+  stepTwist(dt);
+}
 
 // ---------- Sterne: Bäume mit ausgearbeiteten biologischen Fakten ----------
 var STARS = [], starsEl = document.createElement('div');
@@ -84,6 +106,7 @@ var PLACE_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 8
 function selectPlace(title, quiet) {
   var p = PLACES.filter(function (q) { return q.title === title; })[0]; if (!p) return;
   select(null); targetGoal = new THREE.Vector3(p.x, H(p.x, p.y), -p.y);
+  setPlaceSel(p); startFocus(135);
   if (!quiet) post({ t: 'place', title: title });
 }
 ParkApp.setPlaces = function (list) {
@@ -119,7 +142,7 @@ function treeAt(ev) {
   return best;
 }
 // Kameragefühl: kräftigere Drehung und Zoom, Verdrehen mit zwei Fingern dreht die Karte mit Nachlauf
-controls.rotateSpeed = 1.5; controls.zoomSpeed = 1.3; controls.panSpeed = 1.1; controls.dampingFactor = 0.12;
+controls.rotateSpeed = 0.9; controls.zoomSpeed = 1.3; controls.panSpeed = 1.1; controls.dampingFactor = 0.1;
 var twistAngle = null, twistVel = 0;
 function fingers() { var k = Object.keys(touches); return k.length === 2 ? [touches[k[0]], touches[k[1]]] : null; }
 function twistOf(f) { return Math.atan2(f[1].y - f[0].y, f[1].x - f[0].x); }
@@ -127,7 +150,7 @@ function turnBy(a) { off.copy(camera.position).sub(controls.target).applyAxisAng
 function stepTwist(dt) { if (twistAngle === null && Math.abs(twistVel) > 0.0004) { turnBy(twistVel); twistVel *= Math.pow(0.04, dt); } else if (twistAngle === null) twistVel = 0; }
 canvas.addEventListener('pointerdown', function (e) {
   touches[e.pointerId] = { x: e.clientX, y: e.clientY }; canvas.classList.add('grabbing');
-  var f = fingers(); twistAngle = f ? twistOf(f) : null; twistVel = 0; azGoal = null;
+  var f = fingers(); twistAngle = f ? twistOf(f) : null; twistVel = 0; azGoal = null; stopFocus();
   down = Object.keys(touches).length === 1 ? { x: e.clientX, y: e.clientY, t: performance.now() } : null;
 });
 window.addEventListener('pointermove', function (e) {
@@ -143,13 +166,13 @@ window.addEventListener('pointerup', function (e) {
   if (!d || e.target !== canvas || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8 || performance.now() - d.t > 450) return;
   var t = treeAt(e);
   if (t) { select(t); post({ t: 'tree', id: t.id }); }
-  else if (selected) { select(null); post({ t: 'deselect' }); }
+  else if (selected || selPlace) { select(null); stopFocus(); post({ t: 'deselect' }); }
 });
 
 // ---------- Aufrufe aus Flutter ----------
 ParkApp.selectTree = function (id) { var t = TREES.filter(function (x) { return x.id === id; })[0]; if (t) select(t); };
 ParkApp.selectPlace = function (title) { selectPlace(title, true); };
-ParkApp.clearSelection = function () { select(null); };
+ParkApp.clearSelection = function () { select(null); stopFocus(); };
 ParkApp.setLocation = function (lat, lon) {
   var xy = geoToXY(lat, lon); loc.x = xy[0]; loc.y = xy[1];
   loc.known = xy[0] > -340 && xy[0] < 130 && xy[1] > -200 && xy[1] < 140;       // außerhalb des Parks: kein Punkt

@@ -6,6 +6,12 @@ class License {
   final String licenseText;
   final String source;
 
-  License(this.name, this.type, this.icon, this.licenseName, this.licenseText,
-      this.source);
+  License(
+    this.name,
+    this.type,
+    this.icon,
+    this.licenseName,
+    this.licenseText,
+    this.source,
+  );
 }

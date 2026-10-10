@@ -2,11 +2,11 @@ import 'package:lindenhofpark/Licenses/model/license.dart';
 
 final List<License> licenses = [
   License(
-      "url launcher",
-      "Flutter Package",
-      "icon",
-      "License text",
-      """Copyright 2013 The Flutter Authors. All rights reserved.
+    "url launcher",
+    "Flutter Package",
+    "icon",
+    "License text",
+    """Copyright 2013 The Flutter Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
@@ -31,13 +31,9 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.""",
-      "https://pub.dev/packages/url_launcher/versions/6.2.1"),
-  License(
-      "geolocator",
-      "Flutter Package",
-      "icon",
-      "MIT License",
-      """MIT License
+    "https://pub.dev/packages/url_launcher/versions/6.2.1",
+  ),
+  License("geolocator", "Flutter Package", "icon", "MIT License", """MIT License
 
 Copyright (c) 2018 Baseflow
 
@@ -57,14 +53,13 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.""",
-      "https://pub.dev/packages/geolocator/versions/10.1.0"),
+SOFTWARE.""", "https://pub.dev/packages/geolocator/versions/10.1.0"),
   License(
-      "latlong2",
-      "Flutter Package",
-      "icon",
-      "License text",
-      """Copyright 2015 Michael Mitterer (office@mikemitterer.at),
+    "latlong2",
+    "Flutter Package",
+    "icon",
+    "License text",
+    """Copyright 2015 Michael Mitterer (office@mikemitterer.at),
 IT-Consulting and Development Limited, Austrian Branch
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -78,13 +73,9 @@ software distributed under the License is distributed on an
 "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
 either express or implied. See the License for the specific language
 governing permissions and limitations under the License.""",
-      "https://pub.dev/packages/latlong2/versions/0.9.0"),
-  License(
-      "provider",
-      "Flutter Package",
-      "icon",
-      "MIT License",
-      """MIT License
+    "https://pub.dev/packages/latlong2/versions/0.9.0",
+  ),
+  License("provider", "Flutter Package", "icon", "MIT License", """MIT License
 
 Copyright (c) 2019 Remi Rousselet
 
@@ -104,14 +95,13 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.""",
-      "https://pub.dev/packages/provider/versions/6.1.1"),
+SOFTWARE.""", "https://pub.dev/packages/provider/versions/6.1.1"),
   License(
-      "time machine",
-      "Flutter Package",
-      "icon",
-      "Apache License",
-      """Apache License
+    "time machine",
+    "Flutter Package",
+    "icon",
+    "Apache License",
+    """Apache License
 Version 2.0, January 2004
 http://www.apache.org/licenses/
 
@@ -312,13 +302,14 @@ http://www.apache.org/licenses/
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.""",
-      "http://www.apache.org/licenses/LICENSE-2.0"),
+    "http://www.apache.org/licenses/LICENSE-2.0",
+  ),
   License(
-      "flutter launcher icons",
-      "Flutter Package",
-      "icon",
-      "MIT License",
-      """MIT License
+    "flutter launcher icons",
+    "Flutter Package",
+    "icon",
+    "MIT License",
+    """MIT License
 
 Copyright (c) 2019 Mark O'Sullivan
 
@@ -339,24 +330,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""",
-      "https://pub.dev/packages/flutter_launcher_icons/versions/0.13.1"),
-  License(
-      "Font Awesome",
-      "Icons",
-      "icon",
-      "CC BY 4.0 License",
-      """
+    "https://pub.dev/packages/flutter_launcher_icons/versions/0.13.1",
+  ),
+  License("Font Awesome", "Icons", "icon", "CC BY 4.0 License", """
 The Font Awesome Free download is licensed under a Creative Commons
 Attribution 4.0 International License and applies to all icons packaged
 as SVG and JS file types.
-""",
-      "https://creativecommons.org/licenses/by/4.0/"),
+""", "https://creativecommons.org/licenses/by/4.0/"),
   License(
-      "three.js",
-      "JavaScript Library",
-      "icon",
-      "MIT License",
-      """The MIT License
+    "three.js",
+    "JavaScript Library",
+    "icon",
+    "MIT License",
+    """The MIT License
 
 Copyright © 2010-2021 three.js authors
 
@@ -377,13 +363,14 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.""",
-      "https://threejs.org"),
+    "https://threejs.org",
+  ),
   License(
-      "webview flutter",
-      "Flutter Package",
-      "icon",
-      "BSD 3-Clause License",
-      """Copyright 2013 The Flutter Authors
+    "webview flutter",
+    "Flutter Package",
+    "icon",
+    "BSD 3-Clause License",
+    """Copyright 2013 The Flutter Authors
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -408,5 +395,6 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.""",
-      "https://pub.dev/packages/webview_flutter"),
+    "https://pub.dev/packages/webview_flutter",
+  ),
 ];

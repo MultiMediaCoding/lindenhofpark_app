@@ -58,6 +58,9 @@ class MapViewModel extends ChangeNotifier {
       case 'heading':
         heading = (event['deg'] as num).toDouble();
         notifyListeners();
+      case 'tilt':
+        is3D = event['on'] as bool;
+        notifyListeners();
       case 'outside':
         onOutsidePark?.call();
     }

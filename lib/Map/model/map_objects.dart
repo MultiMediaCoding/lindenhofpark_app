@@ -84,7 +84,6 @@ List<MapObject> _buildTreeMapObjects() {
     for (final tree in treeCatalog.trees)
       MapObject(TreeKnowledge.nameOf(tree), category, tree.location,
           treeId: tree.id,
-          subtitle: "${tree.parcel} · Nr. ${tree.id}",
           keywords: tree.latinName),
   ];
 }
