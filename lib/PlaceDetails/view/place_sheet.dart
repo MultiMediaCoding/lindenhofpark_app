@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/physics.dart';
@@ -53,7 +55,10 @@ class _PlaceSheetState extends State<PlaceSheet>
 
   /// Unter dem Rand versteckter Überstand, damit die Feder über die große
   /// Raste hinausschwingen darf, ohne dass unten eine Lücke aufblitzt.
-  static const double _overscan = 80;
+  static const double _overscan = 100;
+
+  /// Größtes Dehnen über die große Raste hinaus (Gummiband).
+  static const double _stretch = 90;
 
   /// Etwa Apples Standardfeder (Response 0,4 s, Dämpfung 0,85).
   static const _spring = SpringDescription(
@@ -75,6 +80,9 @@ class _PlaceSheetState extends State<PlaceSheet>
   bool _sheetDragged = false;
   bool _dismissing = false;
   double _lastDetent = 0;
+
+  /// Wo der Finger das Blatt hinzöge, ohne Gummiband.
+  double _raw = 0;
 
   double get _small => _height * _smallFraction;
   double get _large => _height * _largeFraction;
@@ -171,6 +179,7 @@ class _PlaceSheetState extends State<PlaceSheet>
     _sheetDragged = false;
     _dismissing = false;
     _extent.stop();
+    _raw = _extent.value;
   }
 
   void _onMove(PointerMoveEvent e) {
@@ -181,10 +190,19 @@ class _PlaceSheetState extends State<PlaceSheet>
     // Das Blatt nimmt die Bewegung, solange es nicht ganz oben ist oder der
     // Inhalt oben anliegt und nach unten gezogen wird (Scroll ist dann gesperrt
     // beziehungsweise geklemmt, siehe [_SheetScrollPhysics]).
-    if (_extent.value < _large - 0.5 || (dy > 0 && atTop)) {
-      _extent.value = (_extent.value - dy).clamp(0.0, _large);
+    if (_sheetDragged || _extent.value < _large - 0.5 || (dy > 0 && atTop)) {
+      _raw = math.max(0.0, _raw - dy);
+      _extent.value = _rubberBand(_raw);
       _sheetDragged = true;
     }
+  }
+
+  /// Über der großen Raste wird das Blatt wie in iOS gedehnt: je weiter, desto
+  /// zäher (Apples Gummiband-Formel), höchstens [_stretch].
+  double _rubberBand(double raw) {
+    final over = raw - _large;
+    if (over <= 0) return raw;
+    return _large + (1 - 1 / (over * 0.55 / _stretch + 1)) * _stretch;
   }
 
   void _onUp(PointerEvent e) {
@@ -275,8 +293,8 @@ class _PlaceSheetState extends State<PlaceSheet>
   }
 }
 
-/// iOS-Scrollen im Blatt: Gummiband unten, oben geklemmt (dort übernimmt das
-/// Blatt die Bewegung) und gesperrt, solange das Blatt nicht ganz oben ist.
+/// iOS-Scrollen im Blatt: Gummiband an beiden Enden, aber gesperrt, solange
+/// das Blatt nicht ganz oben ist oder gerade bewegt wird.
 class _SheetScrollPhysics extends BouncingScrollPhysics {
   const _SheetScrollPhysics({required this.isLocked, super.parent})
     : super(decelerationRate: ScrollDecelerationRate.fast);
@@ -287,27 +305,21 @@ class _SheetScrollPhysics extends BouncingScrollPhysics {
   _SheetScrollPhysics applyTo(ScrollPhysics? ancestor) =>
       _SheetScrollPhysics(isLocked: isLocked, parent: buildParent(ancestor));
 
+  /// Der Finger dehnt den Inhalt nie über den oberen Rand: dort zieht er das
+  /// Blatt herunter. Läuft ein Wisch aber oben auf, federt der Inhalt wie in
+  /// iOS kurz über den Rand und zurück.
   @override
-  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) =>
-      isLocked() ? 0 : super.applyPhysicsToUserOffset(position, offset);
+  double applyPhysicsToUserOffset(ScrollMetrics position, double offset) {
+    if (isLocked()) return 0;
+    if (offset > 0 && position.pixels <= position.minScrollExtent) return 0;
+    return super.applyPhysicsToUserOffset(position, offset);
+  }
 
   @override
   Simulation? createBallisticSimulation(
     ScrollMetrics position,
     double velocity,
   ) => isLocked() ? null : super.createBallisticSimulation(position, velocity);
-
-  @override
-  double applyBoundaryConditions(ScrollMetrics position, double value) {
-    if (value < position.minScrollExtent &&
-        position.minScrollExtent <= position.pixels) {
-      return value - position.minScrollExtent; // oben anschlagen
-    }
-    if (value < position.pixels && position.pixels <= position.minScrollExtent) {
-      return value - position.pixels; // schon oben: nicht weiter hinein
-    }
-    return 0;
-  }
 }
 
 /// Bild in der Größe, in der es angezeigt wird (spart Dekodierzeit/Speicher).
